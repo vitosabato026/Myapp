@@ -29,7 +29,7 @@
     padding: 16px; margin-bottom: 14px; }
   .giorno h2 { font-size: 1.05rem; margin: 0 0 4px; display: flex; justify-content: space-between; gap: 8px; }
   .consiglio { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
-  .riga { display: grid; grid-template-columns: 110px 1fr 120px; gap: 10px; align-items: center; padding: 4px 0; }
+  .riga { display: grid; grid-template-columns: 150px 1fr 190px; gap: 10px; align-items: center; padding: 4px 0; }
   .barra { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
   .barra span { display: block; height: 100%; }
   .val { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
@@ -38,13 +38,16 @@
   .medio { background: var(--medio); color: #222; } .alto { background: var(--alto); }
   .errore { color: var(--alto); }
   footer { color: var(--muted); font-size: .8rem; margin-top: 24px; }
-  @media (max-width: 520px) { .riga { grid-template-columns: 90px 1fr 90px; } }
+  .giorno h3 { font-size: .8rem; color: var(--muted); margin: 10px 0 2px; text-transform: uppercase; letter-spacing: .04em; }
+  .riassunto { font-size: .85rem; color: var(--muted); margin: 4px 0; }
+  .barra.stima span { opacity: .55; }
+  @media (max-width: 520px) { .riga { grid-template-columns: 110px 1fr 120px; } .val { font-size: .8rem; } }
 </style>
 </head>
 <body>
 <main>
   <h1>Bollettino Allergie</h1>
-  <p class="sub">Livelli di polline previsti per città e località europee.</p>
+  <p class="sub">Pollini, muffe e qualità dell'aria per città e località europee.</p>
   <form id="f">
     <input id="luogo" placeholder="Città o località (es. Milano)" required>
     <select id="giorni"><option value="1">1 giorno</option><option value="2">2 giorni</option>
@@ -56,13 +59,30 @@
     <a data-l="Bari">Bari</a><a data-l="Bolzano">Bolzano</a><a data-l="Parigi">Parigi</a>
   </div>
   <div id="out"></div>
-  <footer>Dati: Open-Meteo Air Quality API (modello CAMS, Copernicus). Soglie indicative AAITO/POLLnet,
-    in granuli/m³ di media giornaliera. Non sostituisce il parere medico.</footer>
+  <footer>Previsioni: Open-Meteo Air Quality API (modello CAMS, Copernicus) per 6 pollini, polveri e
+    inquinanti. * = stima stagionale dal calendario pollinico, adattata a latitudine e quota.
+    Soglie indicative AAITO/POLLnet e indice europeo della qualità dell'aria.
+    Non sostituisce il parere medico.</footer>
 </main>
 <script>
 const out = document.getElementById('out');
-const SCALA = {Graminacee: 30, Betulla: 50, Ontano: 50, Olivo: 25, Artemisia: 25, Ambrosia: 25};
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function sezione(titolo, gruppo) {
+  if (!gruppo.length) return '';
+  const presenti = gruppo.filter(a => a.livello && a.livello !== 'assente');
+  const elenco = (livello, etichetta) => {
+    const nomi = gruppo.filter(a => a.livello === livello).map(a => a.nome);
+    return nomi.length ? `<p class="riassunto">${etichetta}: ${esc(nomi.join(', '))}</p>` : '';
+  };
+  return `<h3>${esc(titolo)}</h3>` + presenti.map(a => {
+    const stima = a.tipo === 'stagionale';
+    const w = Math.min(100, a.valore / a.soglie[2] * 100);
+    return `<div class="riga"><span>${esc(a.nome)}${stima ? '*' : ''}</span>
+      <div class="barra${stima ? ' stima' : ''}"><span class="${a.livello}" style="width:${w}%"></span></div>
+      <span class="val">${stima ? 'stima' : `${a.valore.toFixed(1)} ${esc(a.unita)}`} · ${a.livello}</span></div>`;
+  }).join('') + elenco('assente', 'Assenti') + elenco(null, 'Non disponibili');
+}
 
 async function consulta(luogo, giorni) {
   out.innerHTML = '<p>Caricamento…</p>';
@@ -75,12 +95,7 @@ async function consulta(luogo, giorni) {
         <h2>${new Date(g.data + 'T12:00').toLocaleDateString('it-IT', {weekday: 'long', day: 'numeric', month: 'long'})}
           <span class="badge ${g.livello_massimo || 'assente'}">${g.livello_massimo || 'n.d.'}</span></h2>
         <p class="consiglio">${esc(g.consiglio)}</p>
-        ${g.pollini.map(p => {
-          const w = p.media == null ? 0 : Math.min(100, p.media / SCALA[p.polline] * 100);
-          return `<div class="riga"><span>${esc(p.polline)}</span>
-            <div class="barra"><span class="${p.livello || 'assente'}" style="width:${w}%"></span></div>
-            <span class="val">${p.media == null ? 'n.d.' : p.media.toFixed(1)} · ${p.livello || 'n.d.'}</span></div>`;
-        }).join('')}
+        ${Object.entries(d.categorie).map(([id, titolo]) => sezione(titolo, g.allergeni.filter(a => a.categoria === id))).join('')}
       </section>`).join('');
   } catch (e) {
     out.innerHTML = `<p class="errore">Errore: ${esc(e.message)}</p>`;

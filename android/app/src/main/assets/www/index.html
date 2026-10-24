@@ -31,7 +31,8 @@
   #luogo-fonte { color: var(--muted); font-size: .85rem; white-space: nowrap; }
   details { margin-bottom: 12px; }
   summary { color: var(--muted); font-size: .9rem; padding: 6px 0; }
-  #filtri { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+  .gruppo { margin: 10px 0 4px; font-size: .8rem; font-weight: 600; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip input { display: none; }
   .chip span { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--card); font-size: .9rem; }
@@ -45,7 +46,16 @@
     align-items: center; }
   .giorno h2::first-letter { text-transform: uppercase; }
   .consiglio { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
-  .riga { display: grid; grid-template-columns: 92px 1fr 64px; gap: 10px; align-items: center; padding: 3px 0; }
+  .categoria + .categoria { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 4px; }
+  .categoria h3 { font-size: .8rem; color: var(--muted); margin: 6px 0 2px; text-transform: uppercase; letter-spacing: .04em; }
+  .riga { display: grid; grid-template-columns: 112px 1fr 64px; gap: 10px; align-items: center; padding: 3px 0; }
+  .nome { line-height: 1.15; }
+  .nome small { display: block; color: var(--muted); font-size: .7rem; }
+  .barra.stima span { opacity: .55; }
+  .val em { font-style: normal; font-size: .8rem; color: var(--muted); }
+  .riassunto { font-size: .82rem; color: var(--muted); margin: 4px 0; }
+  .riassunto b { font-weight: 600; }
+  sup { font-size: .65em; margin-left: 1px; }
   .barra { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
   .barra span { display: block; height: 100%; }
   .val { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; line-height: 1.15; }
@@ -77,16 +87,17 @@
   <details>
     <summary>Le mie allergie</summary>
     <div id="filtri"></div>
-    <p class="nota">Nessuna selezione = tutti i pollini.</p>
+    <p class="nota">Nessuna selezione = tutti. <sup>*</sup> stima stagionale dal calendario pollinico: nessun servizio gratuito ne fornisce previsioni giornaliere.</p>
   </details>
 
   <div class="luogo"><span id="luogo-nome"></span><span id="luogo-fonte"></span></div>
   <div id="stato" hidden></div>
   <div id="risultati"></div>
 
-  <footer>Dati: Open-Meteo Air Quality API (modello CAMS, Copernicus), solo Europa. Nome della località:
-    BigDataCloud. Soglie indicative AAITO/POLLnet sulla media giornaliera in granuli/m³.
-    Previsioni modellistiche: non sostituiscono il parere medico.</footer>
+  <footer>Previsioni: Open-Meteo Air Quality API (modello CAMS, Copernicus) per 6 pollini (solo Europa),
+    polveri e inquinanti. Stime stagionali: calendario pollinico dell'Italia centrale adattato a latitudine
+    e quota (legge di Hopkins). Nome della località: BigDataCloud. Soglie indicative AAITO/POLLnet e
+    indice europeo della qualità dell'aria. Non sostituisce il parere medico.</footer>
 </main>
 <script src="bollettino.js"></script>
 <script src="app.js"></script>

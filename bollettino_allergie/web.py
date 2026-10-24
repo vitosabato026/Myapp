@@ -1,7 +1,7 @@
 """Piccola interfaccia web basata solo sulla libreria standard.
 
 GET /                       pagina HTML
-GET /api/bollettino?luogo=Roma&giorni=3&pollini=graminacee,olivo   JSON
+GET /api/bollettino?luogo=Roma&giorni=3&allergie=graminacee,cipresso   JSON
 """
 
 import json
@@ -9,9 +9,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from urllib.parse import parse_qs, urlparse
 
-from .api import ErroreAPI, cerca_luogo, scarica_pollini
+from .api import ErroreAPI, cerca_luogo, scarica_previsioni
 from .bollettino import crea_bollettino
-from .pollini import cerca_pollini
+from .catalogo import cerca_allergeni
 
 
 def bollettino_json(query: dict[str, list[str]]) -> tuple[int, dict]:
@@ -20,10 +20,10 @@ def bollettino_json(query: dict[str, list[str]]) -> tuple[int, dict]:
         return 400, {"errore": "Parametro 'luogo' mancante"}
     try:
         giorni = int((query.get("giorni") or ["3"])[0])
-        nomi = (query.get("pollini") or [""])[0]
-        pollini = cerca_pollini(nomi.split(",")) if nomi else None
+        nomi = (query.get("allergie") or query.get("pollini") or [""])[0]
+        allergeni = cerca_allergeni(nomi.split(",")) if nomi else None
         trovato = cerca_luogo(luogo)
-        b = crea_bollettino(trovato, scarica_pollini(trovato, giorni), pollini)
+        b = crea_bollettino(trovato, scarica_previsioni(trovato, giorni), allergeni)
     except ValueError as e:
         return 400, {"errore": str(e)}
     except ErroreAPI as e:

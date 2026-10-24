@@ -1,7 +1,8 @@
 """Client per le API gratuite di Open-Meteo (geocoding e qualità dell'aria).
 
 Non serve alcuna chiave. I dati sui pollini provengono dal modello europeo
-CAMS (Copernicus) e sono disponibili solo per l'Europa.
+CAMS (Copernicus) e sono disponibili solo per l'Europa; polveri e inquinanti
+sono previsti in tutto il mondo.
 """
 
 import json
@@ -10,7 +11,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
-from .pollini import POLLINI
+from .catalogo import VARIABILI_API
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 QUALITA_ARIA_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -27,6 +28,7 @@ class Luogo:
     longitudine: float
     regione: str = ""
     paese: str = ""
+    quota: float = 0  # metri sul livello del mare, usata per le stime stagionali
 
     @property
     def descrizione(self) -> str:
@@ -53,17 +55,17 @@ def cerca_luogo(nome: str) -> Luogo:
         raise ErroreAPI(f"Nessun luogo trovato per {nome!r}")
     r = risultati[0]
     return Luogo(r["name"], r["latitude"], r["longitude"],
-                 r.get("admin1", ""), r.get("country", ""))
+                 r.get("admin1", ""), r.get("country", ""), r.get("elevation") or 0)
 
 
-def scarica_pollini(luogo: Luogo, giorni: int = 3) -> dict:
-    """Scarica le concentrazioni orarie di polline (granuli/m³) per il luogo."""
+def scarica_previsioni(luogo: Luogo, giorni: int = 3) -> dict:
+    """Scarica le previsioni orarie di pollini (granuli/m³), polveri e inquinanti (µg/m³)."""
     if not 1 <= giorni <= 4:
-        raise ValueError("Le previsioni dei pollini coprono da 1 a 4 giorni")
+        raise ValueError("Le previsioni coprono da 1 a 4 giorni")
     return _get_json(QUALITA_ARIA_URL, {
         "latitude": luogo.latitudine,
         "longitude": luogo.longitudine,
-        "hourly": ",".join(p.chiave for p in POLLINI),
+        "hourly": ",".join(VARIABILI_API),
         "forecast_days": giorni,
         "timezone": "auto",
     })

@@ -1,8 +1,8 @@
-"""Bollettino delle allergie: consulta i livelli di polline per un luogo."""
+"""Bollettino delle allergie: pollini, spore e qualità dell'aria per un luogo."""
 
-from .api import ErroreAPI, Luogo, cerca_luogo, scarica_pollini
+from .api import ErroreAPI, Luogo, cerca_luogo, scarica_previsioni
 from .bollettino import Bollettino, crea_bollettino
-from .pollini import POLLINI, cerca_pollini
+from .catalogo import ALLERGENI, cerca_allergeni
 
-__all__ = ["Bollettino", "ErroreAPI", "Luogo", "POLLINI", "cerca_luogo",
-           "cerca_pollini", "crea_bollettino", "scarica_pollini"]
+__all__ = ["ALLERGENI", "Bollettino", "ErroreAPI", "Luogo", "cerca_allergeni",
+           "cerca_luogo", "crea_bollettino", "scarica_previsioni"]
