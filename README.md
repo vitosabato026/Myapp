@@ -7,7 +7,53 @@ artemisia e ambrosia**, con un livello di rischio e un consiglio pratico per ogn
 - Nessuna dipendenza esterna: solo Python 3.10+ e la libreria standard.
 - Dati gratuiti senza chiave API: [Open-Meteo](https://open-meteo.com/) (geocoding + Air Quality API,
   modello europeo CAMS/Copernicus). La copertura è limitata all'Europa.
-- Tre modi d'uso: riga di comando, interfaccia web, libreria Python.
+- Quattro modi d'uso: **app Android** con geolocalizzazione, riga di comando, interfaccia web,
+  libreria Python.
+
+## App Android (APK)
+
+L'app usa il **servizio di localizzazione dello smartphone** per mostrare subito il bollettino
+del luogo in cui ti trovi. Scarica l'APK già compilato da
+[`dist/BollettinoAllergie-1.0.apk`](dist/BollettinoAllergie-1.0.apk).
+
+| Posizione attuale | Le mie allergie | Ricerca, tema scuro |
+|---|---|---|
+| ![](android/screenshots/app_posizione.png) | ![](android/screenshots/app_filtro.png) | ![](android/screenshots/app_ricerca_dark.png) |
+
+*Gli screenshot con livelli alti usano i dati simulati di Roma a maggio (vedi Esempi).*
+
+**Installazione:** apri il file `.apk` sul telefono (Android 8.0 o successivo) e consenti
+l'installazione da origini sconosciute quando viene richiesto. Al primo avvio l'app chiede il
+permesso di posizione.
+
+**Funzionamento:**
+- all'avvio l'app rileva la posizione (tasto *Usa la mia posizione* per aggiornarla) e mostra il
+  nome della località e il bollettino a 1-4 giorni;
+- chiede solo la **posizione approssimativa**: basta, perché il modello dei pollini ha una
+  griglia di circa 10 km, e protegge la privacy;
+- se il permesso è negato o il GPS è spento puoi **cercare una città**; al riavvio, se la
+  posizione non è disponibile, viene riproposta l'ultima località consultata;
+- in *Le mie allergie* scegli i pollini che ti interessano (la scelta viene ricordata);
+- supporta tema chiaro e scuro.
+
+**Come è fatta:** un'app nativa in Kotlin (`android/`) che ottiene la posizione dal
+`LocationManager` di Android e la passa all'interfaccia web contenuta nell'app
+(`android/app/src/main/assets/www/`). L'interfaccia interroga direttamente Open-Meteo dal
+telefono: non serve alcun server. Il nome della località viene da BigDataCloud
+(reverse geocoding gratuito, senza chiave). La logica dei livelli è la stessa del pacchetto
+Python (`bollettino.js`).
+
+**Compilare l'APK** (servono JDK 17+ e l'Android SDK):
+
+```bash
+cd android
+echo "sdk.dir=/percorso/android-sdk" > local.properties   # oppure ANDROID_HOME
+./gradlew assembleDebug
+# -> app/build/outputs/apk/debug/app-debug.apk
+```
+
+L'APK in `dist/` è firmato con una chiave di debug, quindi va bene per installarlo a mano ma
+non per il Play Store. Per pubblicarlo serve una build `release` firmata con una tua chiave.
 
 ## Come si usa
 
@@ -95,7 +141,8 @@ il parere del medico o dell'allergologo.
 ## Test
 
 ```bash
-python -m unittest -v
+python -m unittest -v                          # pacchetto Python
+node --test android/test/bollettino.test.js    # logica dell'app Android
 ```
 
 I test non richiedono la rete.

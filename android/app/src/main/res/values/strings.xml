@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bollettino Allergie</string>
+    <string name="errore_permesso">Permesso di posizione negato: puoi cercare una città manualmente.</string>
+    <string name="errore_disattivata">La localizzazione è disattivata: attivala nelle impostazioni del telefono o cerca una città.</string>
+    <string name="errore_timeout">Posizione non disponibile al momento. Riprova o cerca una città.</string>
+</resources>

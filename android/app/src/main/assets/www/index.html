@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Bollettino Allergie</title>
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --text: #1f2a24; --muted: #66706a; --border: #dde2dc;
+    --assente: #c9d1cb; --basso: #7cb46b; --medio: #e8b33c; --alto: #d4553d; --accent: #2f6f4f;
+    --su-accent: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151a17; --card: #1e2521; --text: #e6ebe7; --muted: #9aa49e; --border: #2f3833;
+            --assente: #3d4741; --accent: #6fbf94; --su-accent: #10261a; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px 32px; }
+  h1 { margin: 4px 0 12px; font-size: 1.4rem; }
+  form { display: flex; gap: 8px; }
+  input[type=search], select, button { font: inherit; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text); min-height: 44px; }
+  input[type=search] { flex: 1; min-width: 0; }
+  button { background: var(--accent); color: var(--su-accent); border: none; font-weight: 600; }
+  #gps { width: 100%; margin: 8px 0 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #gps svg { width: 20px; height: 20px; }
+  .luogo { display: flex; justify-content: space-between; align-items: end; gap: 8px; margin: 4px 0 8px; }
+  #luogo-nome { font-weight: 700; }
+  #luogo-fonte { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+  details { margin-bottom: 12px; }
+  summary { color: var(--muted); font-size: .9rem; padding: 6px 0; }
+  #filtri { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 6px; }
+  .chip input { display: none; }
+  .chip span { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--card); font-size: .9rem; }
+  .chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--su-accent); }
+  .nota { color: var(--muted); font-size: .8rem; margin: 6px 0 0; }
+  #stato { padding: 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); }
+  #stato.errore { color: var(--alto); }
+  .giorno { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; margin-bottom: 12px; }
+  .giorno h2 { font-size: 1rem; margin: 0 0 4px; display: flex; justify-content: space-between; gap: 8px;
+    align-items: center; }
+  .giorno h2::first-letter { text-transform: uppercase; }
+  .consiglio { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
+  .riga { display: grid; grid-template-columns: 92px 1fr 64px; gap: 10px; align-items: center; padding: 3px 0; }
+  .barra { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
+  .barra span { display: block; height: 100%; }
+  .val { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; line-height: 1.15; }
+  .val small { display: block; color: var(--muted); font-size: .72rem; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: .75rem; color: #fff; text-transform: uppercase;
+    font-weight: 700; }
+  .assente { background: var(--assente); color: var(--text); } .basso { background: var(--basso); }
+  .medio { background: var(--medio); color: #222; } .alto { background: var(--alto); }
+  .vuoto { color: var(--muted); }
+  footer { color: var(--muted); font-size: .75rem; margin-top: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bollettino Allergie</h1>
+  <form id="cerca">
+    <input id="testo-luogo" type="search" placeholder="Cerca una città" enterkeyhint="search" autocomplete="off">
+    <select id="giorni" aria-label="Giorni di previsione">
+      <option value="1">1 g</option><option value="2">2 g</option>
+      <option value="3" selected>3 g</option><option value="4">4 g</option>
+    </select>
+  </form>
+  <button id="gps" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    Usa la mia posizione
+  </button>
+
+  <details>
+    <summary>Le mie allergie</summary>
+    <div id="filtri"></div>
+    <p class="nota">Nessuna selezione = tutti i pollini.</p>
+  </details>
+
+  <div class="luogo"><span id="luogo-nome"></span><span id="luogo-fonte"></span></div>
+  <div id="stato" hidden></div>
+  <div id="risultati"></div>
+
+  <footer>Dati: Open-Meteo Air Quality API (modello CAMS, Copernicus), solo Europa. Nome della località:
+    BigDataCloud. Soglie indicative AAITO/POLLnet sulla media giornaliera in granuli/m³.
+    Previsioni modellistiche: non sostituiscono il parere medico.</footer>
+</main>
+<script src="bollettino.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
