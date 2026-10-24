@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bollettino Allergie</title>
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --text: #1f2a24; --muted: #66706a; --border: #dde2dc;
+    --assente: #c9d1cb; --basso: #7cb46b; --medio: #e8b33c; --alto: #d4553d; --accent: #2f6f4f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151a17; --card: #1e2521; --text: #e6ebe7; --muted: #9aa49e; --border: #2f3833;
+            --assente: #3d4741; --accent: #6fbf94; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  input, select, button { font: inherit; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--card); color: var(--text); }
+  input { flex: 1 1 220px; }
+  button { background: var(--accent); color: #fff; border: none; cursor: pointer; }
+  .esempi { color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
+  .esempi a { color: var(--accent); margin-right: 8px; cursor: pointer; }
+  .giorno { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; }
+  .giorno h2 { font-size: 1.05rem; margin: 0 0 4px; display: flex; justify-content: space-between; gap: 8px; }
+  .consiglio { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
+  .riga { display: grid; grid-template-columns: 110px 1fr 120px; gap: 10px; align-items: center; padding: 4px 0; }
+  .barra { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; }
+  .barra span { display: block; height: 100%; }
+  .val { font-variant-numeric: tabular-nums; font-size: .9rem; text-align: right; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: .8rem; color: #fff; text-transform: uppercase; }
+  .assente { background: var(--assente); color: var(--text); } .basso { background: var(--basso); }
+  .medio { background: var(--medio); color: #222; } .alto { background: var(--alto); }
+  .errore { color: var(--alto); }
+  footer { color: var(--muted); font-size: .8rem; margin-top: 24px; }
+  @media (max-width: 520px) { .riga { grid-template-columns: 90px 1fr 90px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bollettino Allergie</h1>
+  <p class="sub">Livelli di polline previsti per città e località europee.</p>
+  <form id="f">
+    <input id="luogo" placeholder="Città o località (es. Milano)" required>
+    <select id="giorni"><option value="1">1 giorno</option><option value="2">2 giorni</option>
+      <option value="3" selected>3 giorni</option><option value="4">4 giorni</option></select>
+    <button>Consulta</button>
+  </form>
+  <div class="esempi">Esempi:
+    <a data-l="Milano">Milano</a><a data-l="Roma">Roma</a><a data-l="Firenze">Firenze</a>
+    <a data-l="Bari">Bari</a><a data-l="Bolzano">Bolzano</a><a data-l="Parigi">Parigi</a>
+  </div>
+  <div id="out"></div>
+  <footer>Dati: Open-Meteo Air Quality API (modello CAMS, Copernicus). Soglie indicative AAITO/POLLnet,
+    in granuli/m³ di media giornaliera. Non sostituisce il parere medico.</footer>
+</main>
+<script>
+const out = document.getElementById('out');
+const SCALA = {Graminacee: 30, Betulla: 50, Ontano: 50, Olivo: 25, Artemisia: 25, Ambrosia: 25};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function consulta(luogo, giorni) {
+  out.innerHTML = '<p>Caricamento…</p>';
+  try {
+    const r = await fetch(`/api/bollettino?luogo=${encodeURIComponent(luogo)}&giorni=${giorni}`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.errore || r.statusText);
+    out.innerHTML = `<p><strong>${esc(d.luogo.descrizione)}</strong></p>` + d.giorni.map(g => `
+      <section class="giorno">
+        <h2>${new Date(g.data + 'T12:00').toLocaleDateString('it-IT', {weekday: 'long', day: 'numeric', month: 'long'})}
+          <span class="badge ${g.livello_massimo || 'assente'}">${g.livello_massimo || 'n.d.'}</span></h2>
+        <p class="consiglio">${esc(g.consiglio)}</p>
+        ${g.pollini.map(p => {
+          const w = p.media == null ? 0 : Math.min(100, p.media / SCALA[p.polline] * 100);
+          return `<div class="riga"><span>${esc(p.polline)}</span>
+            <div class="barra"><span class="${p.livello || 'assente'}" style="width:${w}%"></span></div>
+            <span class="val">${p.media == null ? 'n.d.' : p.media.toFixed(1)} · ${p.livello || 'n.d.'}</span></div>`;
+        }).join('')}
+      </section>`).join('');
+  } catch (e) {
+    out.innerHTML = `<p class="errore">Errore: ${esc(e.message)}</p>`;
+  }
+}
+document.getElementById('f').addEventListener('submit', e => {
+  e.preventDefault();
+  consulta(document.getElementById('luogo').value, document.getElementById('giorni').value);
+});
+document.querySelectorAll('.esempi a').forEach(a => a.addEventListener('click', () => {
+  document.getElementById('luogo').value = a.dataset.l;
+  consulta(a.dataset.l, document.getElementById('giorni').value);
+}));
+</script>
+</body>
+</html>
