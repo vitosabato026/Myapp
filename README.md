@@ -7,18 +7,44 @@ pratico per ogni giorno.
 | Categoria | Allergeni | Fonte del dato |
 |---|---|---|
 | Pollini, previsione | Graminacee, Betulla, Ontano, Olivo, Artemisia, Ambrosia | modello CAMS (Copernicus), solo Europa |
-| Pollini, stima stagionale | Cipresso, Nocciolo, Carpino, Frassino, Parietaria, Platano, Pioppo, Salice, Quercia, Castagno, Faggio, Pino, Tiglio, Acero, Olmo, Chenopodio e amaranto, Piantaggine, Romice | calendario pollinico, solo Europa |
-| Muffe (spore), stima stagionale | Alternaria, Cladosporium | calendario pollinico, solo Europa |
+| Pollini, misura o stima | **Parietaria**, Cipresso, Nocciolo, Carpino, Frassino, Platano, Pioppo, Salice, Quercia, Castagno, Faggio, Pino, Acero, Olmo, Chenopodio e amaranto, Piantaggine, Romice | stazione POLLnet (ISPRA) più vicina; se manca, calendario pollinico |
+| Pollini, stima stagionale | Tiglio | calendario pollinico, solo Europa |
+| Muffe (spore) | Alternaria (misura o stima), Cladosporium (stima) | POLLnet / calendario pollinico |
 | Qualità dell'aria, previsione | Polvere sahariana, PM10, PM2.5, Ozono, Biossido di azoto | modello CAMS, tutto il mondo |
 
-**Previsione e stima non sono la stessa cosa.** Nessun servizio gratuito fornisce previsioni
-giornaliere per cipresso, parietaria, muffe e gli altri pollini: per questi il livello è una
-**stima** ricavata dal calendario pollinico dell'Italia centrale, spostata in base a
-latitudine e quota con la legge bioclimatica di Hopkins (circa 4 giorni per grado di
-latitudine e ogni 122 m di quota). In primavera le fioriture arrivano più tardi a nord e in
-quota, in autunno le stagioni tardive finiscono prima. La stima dice *se* quell'allergene è
-in stagione in quel periodo, non quanto ce n'è proprio quel giorno. Nell'app e nella riga di
-comando le stime sono segnate con `*` e con barre più chiare.
+**Previsione, misura e stima non sono la stessa cosa.** Nessun servizio gratuito fornisce
+*previsioni* per parietaria, cipresso, muffe e gli altri pollini. Per questi l'app usa, in
+ordine:
+
+1. **la misura** della stazione della rete di monitoraggio aerobiologico
+   [POLLnet](https://www.isprambiente.gov.it/) di ISPRA più vicina (entro 60 km), cioè le
+   concentrazioni realmente rilevate nell'ultima settimana disponibile. I dati arrivano con
+   circa una settimana di ritardo, quindi il bollettino mostra la settimana appena misurata;
+2. se non c'è una stazione vicina con dati recenti, **la stima** dal calendario pollinico
+   dell'Italia centrale, spostata in base a latitudine e quota con la legge bioclimatica di
+   Hopkins (circa 4 giorni per grado di latitudine e ogni 122 m di quota; in autunno l'effetto
+   si inverte). La stima dice *se* quell'allergene è in stagione, non quanto ce n'è.
+
+Nella riga di comando le misure sono segnate con `°` e le stime con `*`; nell'app le misure
+riportano la dicitura "misura" e le stime hanno barre più chiare.
+
+### Parietaria
+
+La parietaria (famiglia delle Urticaceae) è il polline allergenico più diffuso in Italia,
+soprattutto al centro-sud e sulle coste, con una stagione lunghissima. Per questo ha un
+**riquadro dedicato** in cima al bollettino, con la stazione di misura, la media e il
+grafico dei 7 giorni misurati, e le soglie ufficiali POLLnet (basso da 2, medio da 20, alto
+da 70 granuli/m³).
+
+Le misure correggono il calendario dove il clima locale si discosta: il 24 ottobre 2026 la
+stima indicava la parietaria quasi finita, mentre la stazione di Bolzano misurava ancora 62
+granuli/m³ di media (livello medio) e Napoli 7,6 (basso).
+
+Due accortezze sui dati POLLnet, gestite automaticamente:
+- alcune stazioni pubblicano i giorni non ancora analizzati con tutte le concentrazioni a
+  zero (per esempio Roma Tor Vergata, 4-10 ottobre 2026): un giorno reale ha sempre qualche
+  polline o spora, quindi questi giorni sono considerati non misurati;
+- alcuni record hanno date future (errori di inserimento) e vengono scartati.
 
 Polveri e inquinanti non sono allergeni, ma irritano le vie respiratorie e peggiorano asma e
 rinite allergica.
@@ -28,7 +54,8 @@ animali, alimenti, farmaci, punture d'insetto): non hanno un bollettino.
 
 - Nessuna dipendenza esterna: solo Python 3.10+ e la libreria standard.
 - Dati gratuiti senza chiave API: [Open-Meteo](https://open-meteo.com/) (geocoding + Air Quality API,
-  modello CAMS/Copernicus). Pollini e muffe solo in Europa; polveri e inquinanti ovunque.
+  modello CAMS/Copernicus) e il servizio WFS della rete POLLnet di ISPRA (licenza CC BY 4.0).
+  Pollini e muffe solo in Europa (misure solo in Italia); polveri e inquinanti ovunque.
 - Quattro modi d'uso: **app Android** con geolocalizzazione, riga di comando, interfaccia web,
   libreria Python.
 
@@ -36,14 +63,14 @@ animali, alimenti, farmaci, punture d'insetto): non hanno un bollettino.
 
 L'app usa il **servizio di localizzazione dello smartphone** per mostrare subito il bollettino
 del luogo in cui ti trovi. Scarica l'APK già compilato da
-[`dist/BollettinoAllergie-1.1.apk`](dist/BollettinoAllergie-1.1.apk).
+[`dist/BollettinoAllergie-1.2.apk`](dist/BollettinoAllergie-1.2.apk).
 
-| Le mie allergie | Profilo personale | Tema scuro | Palermo, dati reali |
+| Parietaria misurata (Napoli) | Le mie allergie | Profilo personale | Tema scuro |
 |---|---|---|---|
-| ![](android/screenshots/app_allergie.png) | ![](android/screenshots/app_filtro.png) | ![](android/screenshots/app_dark.png) | ![](android/screenshots/app_palermo.png) |
+| ![](android/screenshots/app_parietaria.png) | ![](android/screenshots/app_allergie.png) | ![](android/screenshots/app_filtro.png) | ![](android/screenshots/app_dark.png) |
 
-*I primi tre screenshot usano i dati simulati di Roma a maggio (vedi Esempi); l'ultimo usa i dati
-reali di fine ottobre.*
+*Il primo screenshot usa i dati reali del 24 ottobre 2026; gli altri i dati simulati di Roma a
+maggio (vedi Esempi).*
 
 **Installazione:** apri il file `.apk` sul telefono (Android 8.0 o successivo) e consenti
 l'installazione da origini sconosciute quando viene richiesto. Al primo avvio l'app chiede il
@@ -65,11 +92,13 @@ permesso di posizione.
 **Come è fatta:** un'app nativa in Kotlin (`android/`) che ottiene la posizione dal
 `LocationManager` di Android e la passa all'interfaccia web contenuta nell'app
 (`android/app/src/main/assets/www/`). L'interfaccia interroga direttamente Open-Meteo dal
-telefono: non serve alcun server. Il nome della località viene da BigDataCloud
-(reverse geocoding gratuito, senza chiave). Il catalogo degli allergeni
-(`bollettino_allergie/catalogo/allergeni.json`) è condiviso con il pacchetto Python e viene
-copiato nell'APK durante la build; la logica (`bollettino.js`) rispecchia quella Python e un
-test verifica che diano gli stessi risultati.
+telefono: non serve alcun server. Il servizio POLLnet di ISPRA rifiuta le richieste fatte da
+una pagina web (CORS), quindi le sue misure vengono scaricate dal codice nativo, che accetta
+solo quell'indirizzo; l'elenco delle stazioni resta in memoria per una settimana. Il nome
+della località viene da BigDataCloud (reverse geocoding gratuito, senza chiave). Il catalogo
+degli allergeni (`bollettino_allergie/catalogo/allergeni.json`) è condiviso con il pacchetto
+Python e viene copiato nell'APK durante la build; la logica (`bollettino.js`, `pollnet.js`)
+rispecchia quella Python e i test verificano che diano gli stessi risultati.
 
 **Compilare l'APK** (servono JDK 17+ e l'Android SDK):
 
@@ -92,6 +121,7 @@ python -m bollettino_allergie Milano                          # bollettino a 3 g
 python -m bollettino_allergie Firenze --giorni 4              # 1-4 giorni
 python -m bollettino_allergie Roma -a cipresso,parietaria,pm10 # solo le tue allergie
 python -m bollettino_allergie Roma --completo                 # mostra anche gli assenti
+python -m bollettino_allergie Napoli --senza-misure           # solo stime, senza stazioni POLLnet
 python -m bollettino_allergie Bari --json                     # output JSON
 python -m bollettino_allergie --elenco                        # tutti gli allergeni disponibili
 ```
@@ -134,11 +164,12 @@ python -m bollettino_allergie --web --porta 8000
 ### Libreria
 
 ```python
-from bollettino_allergie import cerca_luogo, scarica_previsioni, crea_bollettino, cerca_allergeni
+from bollettino_allergie import cerca_luogo, scarica_previsioni, crea_bollettino, cerca_allergeni, pollnet
 
 luogo = cerca_luogo("Torino")
+misure = pollnet.scarica_misure(luogo.latitudine, luogo.longitudine)  # stazioni POLLnet vicine
 b = crea_bollettino(luogo, scarica_previsioni(luogo, giorni=3),
-                    cerca_allergeni(["ambrosia", "parietaria", "alternaria", "ozono"]))
+                    cerca_allergeni(["ambrosia", "parietaria", "alternaria", "ozono"]), misure)
 for giorno in b.giorni:
     print(giorno.data, giorno.livello_massimo, giorno.consiglio)
 ```
@@ -152,16 +183,19 @@ for giorno in b.giorni:
 | 1 | Roma, maggio | Tutti i 31 allergeni: olivo e graminacee previsti, quercia e parietaria stimate, polvere sahariana |
 | 2 | Milano, aprile | Profilo personale: Betulaceae, cipresso, platano e, per l'asma, PM10 e NO₂ |
 | 3 | Milano, fine agosto | Uso programmatico: giorni da evitare per ambrosia, Alternaria e ozono |
-| 4 | Firenze, oggi | Consultazione reale via API (`--live`) |
+| 4 | Napoli, Bolzano, Roma | Parietaria misurata dalle stazioni POLLnet (istantanea reale del 24/10/2026) e ripiego sulla stima dove la stazione non ha dati validi |
+| 5 | Firenze, oggi | Consultazione reale via API, con le misure POLLnet (`--live`) |
 
 ```bash
-python esempi/esempi.py          # scenari 1-3, offline
-python esempi/esempi.py --live   # aggiunge lo scenario 4 con dati reali
+python esempi/esempi.py          # scenari 1-4, offline
+python esempi/esempi.py --live   # aggiunge lo scenario 5 con dati reali
 ```
 
 Gli scenari 1-3 usano dati **simulati** in `esempi/dati/` (stesso formato dell'API,
 generati da `esempi/genera_dati.py`), così gli esempi sono significativi anche
-fuori stagione, quando i pollini reali sono vicini a zero.
+fuori stagione, quando i pollini reali sono vicini a zero. Lo scenario 4 usa
+un'istantanea **reale** del servizio POLLnet (`esempi/dati/pollnet_24ottobre.json`),
+usata anche dai test.
 
 ## Come si calcola il livello
 
@@ -185,6 +219,10 @@ Per le **stime stagionali** ogni allergene ha un calendario di 12 valori mensili
 1 basso, 2 medio, 3 alto), interpolato giorno per giorno e spostato con la legge di Hopkins.
 Soglie e calendari sono nel file `bollettino_allergie/catalogo/allergeni.json`: modificandolo
 si aggiornano sia il pacchetto Python sia l'app.
+
+Per le **misure POLLnet** si usa la media degli ultimi 7 giorni misurati (almeno 3 valori,
+dati non più vecchi di 14 giorni) e le soglie ufficiali della rete per ogni particella,
+riportate nel catalogo (parietaria: 2 / 20 / 70 granuli/m³; cipresso: 4 / 30 / 90; ...).
 
 Il rischio complessivo del giorno è il livello più alto tra gli allergeni considerati.
 Previsioni e stime sono indicative: il bollettino non sostituisce il parere del medico o

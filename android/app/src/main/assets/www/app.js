@@ -7,6 +7,8 @@
   'use strict';
 
   const B = window.Bollettino;
+  const P = window.Pollnet;
+  const VALIDITA_STAZIONI_MS = 7 * 864e5;
   const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
   const QUALITA_ARIA_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
   const NOME_LUOGO_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
@@ -27,6 +29,8 @@
   let selezionati = []; // id degli allergeni scelti; [] = tutti
   let ultimoLuogo = null;
   let ultimiDati = null;
+  let ultimeMisure = {}; // misure POLLnet per id dell'allergene
+  let statoMisure = 'nessuno'; // nessuno | caricamento | pronto | errore
 
   async function getJson(url, params) {
     const r = await fetch(params ? `${url}?${new URLSearchParams(params)}` : url);
@@ -54,9 +58,62 @@
     };
   }
 
+  // --- misure POLLnet (scaricate dal codice nativo: il server rifiuta le richieste del browser) ---
+
+  const richieste = new Map();
+  let prossimaRichiesta = 0;
+
+  function scaricaJson(url) {
+    if (!window.AndroidRete) return getJson(url); // fuori dall'app: funziona solo se il server lo consente
+    return new Promise((risolvi, rifiuta) => {
+      const id = String(++prossimaRichiesta);
+      const timer = setTimeout(() => { richieste.delete(id); rifiuta(new Error('tempo scaduto')); }, 45000);
+      richieste.set(id, { risolvi, rifiuta, timer });
+      window.AndroidRete.scarica(id, url);
+    });
+  }
+
+  window.reteRisposta = function (id, ok, testo) {
+    const r = richieste.get(id);
+    if (!r) return;
+    richieste.delete(id);
+    clearTimeout(r.timer);
+    try {
+      if (ok) r.risolvi(JSON.parse(testo)); else r.rifiuta(new Error(testo));
+    } catch (e) {
+      r.rifiuta(e);
+    }
+  };
+
+  async function stazioniPollnet() {
+    const cache = memoria.leggi('stazioniPollnet', null);
+    if (cache && Date.now() - cache.salvate < VALIDITA_STAZIONI_MS) return cache.stazioni;
+    const stazioni = await P.scaricaStazioni(scaricaJson);
+    memoria.scrivi('stazioniPollnet', { salvate: Date.now(), stazioni });
+    return stazioni;
+  }
+
+  async function caricaMisure(luogo) {
+    ultimeMisure = {};
+    statoMisure = 'caricamento';
+    let misure = {};
+    let esito = 'pronto';
+    try {
+      const stazioni = await stazioniPollnet();
+      misure = await P.scaricaMisure({ lat: luogo.lat, lon: luogo.lon, catalogo, stazioni, scarica: scaricaJson });
+    } catch {
+      esito = 'errore'; // senza misure il bollettino resta con le stime stagionali
+    }
+    if (luogo !== ultimoLuogo) return; // nel frattempo è stato scelto un altro luogo
+    ultimeMisure = misure;
+    statoMisure = esito;
+    mostra();
+  }
+
   async function caricaBollettino(luogo) {
     ultimoLuogo = luogo;
     stato('Caricamento del bollettino…');
+    caricaMisure(luogo);
     try {
       ultimiDati = await getJson(QUALITA_ARIA_URL, {
         latitude: luogo.lat, longitude: luogo.lon,
@@ -75,10 +132,50 @@
   function riga(r) {
     const w = r.valore == null ? 0 : Math.min(100, (r.valore / r.soglie[2]) * 100);
     const stagionale = r.tipo === 'stagionale';
+    const unita = stagionale ? '' : `${r.unita}${r.tipo === 'misura' ? ' · misura' : ''}`;
     return `<div class="riga">
-      <span class="nome">${esc(r.nome)}${stagionale ? '' : `<small>${esc(r.unita)}</small>`}</span>
+      <span class="nome">${esc(r.nome)}${unita ? `<small>${esc(unita)}</small>` : ''}</span>
       <div class="barra${stagionale ? ' stima' : ''}"><span class="${r.livello}" style="width:${w}%"></span></div>
       <span class="val">${stagionale ? '<em>stima</em>' : r.valore.toFixed(1)}<small>${r.livello}</small></span></div>`;
+  }
+
+  const dataBreve = (iso) => new Date(`${iso}T12:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+
+  /** Riquadro dedicato alla parietaria, il polline allergenico più diffuso in Italia. */
+  function inEvidenza(rilevazioni) {
+    const r = rilevazioni.find((x) => x.id === 'parietaria');
+    if (!r) return '';
+    let corpo;
+    if (r.misura) {
+      const m = r.misura;
+      const massimo = Math.max(r.soglie[1], ...m.serie.map(([, v]) => v || 0));
+      corpo = `<p class="fonte">Misurata a <b>${esc(m.stazione)}</b> (${Math.round(m.distanza_km)} km),
+          ${esc(dataBreve(m.dal))} – ${esc(dataBreve(m.al))}: media <b>${m.media.toFixed(1)}</b> granuli/m³,
+          picco ${m.picco.toFixed(0)}</p>
+        <div class="grafico" role="img" aria-label="Concentrazioni giornaliere">
+          ${m.serie.map(([g, v]) => `<div class="colonna" title="${esc(dataBreve(g))}: ${v ?? 'n.d.'}">
+            <span class="${v == null ? 'vuota' : B.livelloDaSoglie(r.soglie, v)}"
+              style="height:${v == null ? 4 : Math.max(4, (v / massimo) * 100)}%"></span>
+            <small>${new Date(`${g}T12:00`).toLocaleDateString('it-IT', { weekday: 'narrow' })}</small></div>`).join('')}
+        </div>
+        <p class="nota">Rete POLLnet (ISPRA): i dati arrivano con circa una settimana di ritardo.
+          Soglie: basso da ${r.soglie[0]}, medio da ${r.soglie[1]}, alto da ${r.soglie[2]} granuli/m³.</p>`;
+    } else if (statoMisure === 'caricamento') {
+      corpo = '<p class="fonte">Cerco le misure della stazione POLLnet più vicina…</p>';
+    } else if (statoMisure === 'errore' && r.livello) {
+      corpo = `<p class="fonte">Misure POLLnet non raggiungibili al momento: livello stimato dal
+        calendario pollinico. Riprova più tardi.</p>`;
+    } else if (r.livello) {
+      corpo = `<p class="fonte">Nessuna stazione POLLnet con dati recenti entro ${P.DISTANZA_MAX_KM} km:
+        livello stimato dal calendario pollinico.</p>`;
+    } else {
+      corpo = '<p class="fonte">Dati non disponibili per questa zona.</p>';
+    }
+    return `<section class="evidenza">
+      <h2>Parietaria <small>Urticaceae</small>
+        <span class="badge ${r.livello || 'assente'}">${r.livello || 'n.d.'}</span></h2>
+      ${corpo}
+    </section>`;
   }
 
   function sezione(titolo, gruppo) {
@@ -95,7 +192,7 @@
   function mostra() {
     if (!ultimoLuogo || !ultimiDati) return;
     const giorni = B.creaBollettino(ultimiDati, catalogo, {
-      ids: selezionati, latitudine: ultimoLuogo.lat, quota: ultimoLuogo.quota,
+      ids: selezionati, latitudine: ultimoLuogo.lat, quota: ultimoLuogo.quota, misure: ultimeMisure,
     });
     $('luogo-nome').textContent = ultimoLuogo.nome ||
       `${ultimoLuogo.lat.toFixed(3)}, ${ultimoLuogo.lon.toFixed(3)}`;
@@ -107,7 +204,7 @@
         'spore sono coperti solo in Europa.</p>';
       return;
     }
-    $('risultati').innerHTML = giorni.map((g) => `
+    $('risultati').innerHTML = inEvidenza(giorni[0].allergeni) + giorni.map((g) => `
       <section class="giorno">
         <h2>${esc(nomeGiorno(g.data))}
           <span class="badge ${g.livelloMassimo || 'assente'}">${g.livelloMassimo || 'n.d.'}</span></h2>

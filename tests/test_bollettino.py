@@ -9,8 +9,9 @@ from pathlib import Path
 from unittest import mock
 
 from bollettino_allergie import ALLERGENI, Luogo, cerca_allergeni, crea_bollettino
+from bollettino_allergie import pollnet
 from bollettino_allergie.catalogo import PER_ID, ritardo_fenologico, verso_ritardo
-from bollettino_allergie.cli import elenco, formatta, main
+from bollettino_allergie.cli import elenco, formatta, in_evidenza, main
 from bollettino_allergie.web import Gestore
 
 DATI = Path(__file__).resolve().parent.parent / "esempi" / "dati"
@@ -20,6 +21,12 @@ ROMA = Luogo("Roma", 41.89, 12.51, "Lazio", "Italia")
 def carica(nome):
     dati = json.loads((DATI / f"{nome}.json").read_text())
     return Luogo(**dati.pop("luogo")), dati
+
+
+def carica_pollnet():
+    dati = json.loads((DATI / "pollnet_24ottobre.json").read_text())
+    stazioni = [pollnet.Stazione(**s) for s in dati["stazioni"]]
+    return date.fromisoformat(dati["oggi"]), stazioni, {int(k): v for k, v in dati["record"].items()}
 
 
 def rilevazione(giorno, id_):
@@ -131,10 +138,117 @@ class TestBollettino(unittest.TestCase):
         self.assertIn("parietaria", elenco())
 
 
+class TestPollnet(unittest.TestCase):
+    """Usa un'istantanea reale del servizio POLLnet (24 ottobre 2026)."""
+
+    def setUp(self):
+        self.oggi, self.stazioni, self.record = carica_pollnet()
+        self.per_nome = {s.nome: s for s in self.stazioni}
+
+    def misure(self, nome):
+        s = self.per_nome[nome]
+        return pollnet.misure_da_record(self.record[s.id], s, 2.0, self.oggi)
+
+    def test_parietaria_napoli(self):
+        m = self.misure("Napoli - Via don Bosco")[1362]
+        self.assertEqual((m.dal, m.al, m.media, m.picco), ("2026-10-11", "2026-10-17", 7.6, 10))
+        self.assertEqual([v for _, v in m.serie], [8, 5, 5, 7, 10, 10, 8])
+
+    def test_giorni_tutti_a_zero_non_sono_misure(self):
+        # Roma Tor Vergata ha pubblicato 4-10 ottobre con tutte le concentrazioni a zero
+        self.assertEqual(self.misure("Roma Tor Vergata"), {})
+
+    def test_date_future_scartate(self):
+        s = self.per_nome["Napoli - Via don Bosco"]
+        record = self.record[s.id] + [{"PART_ID": 1362, "REMA_DATE": "2026-11-07Z", "REMA_CONCENTRATION": 500}]
+        self.assertEqual(pollnet.misure_da_record(record, s, 2.0, self.oggi)[1362].al, "2026-10-17")
+
+    def test_dati_vecchi_scartati(self):
+        s = self.per_nome["Napoli - Via don Bosco"]
+        tardi = date(2026, 11, 15)
+        self.assertEqual(pollnet.misure_da_record(self.record[s.id], s, 2.0, tardi), {})
+
+    def test_combina_carpino(self):
+        m = self.misure("Bolzano")
+        carpino = pollnet.combina(m, PER_ID["carpino"].pollnet_particelle)
+        self.assertEqual(carpino.media, round(m[1381].media + m[1382].media, 1))
+        self.assertIsNone(pollnet.combina(m, (1381, 99999)))
+        self.assertIsNone(pollnet.combina(m, ()))  # allergene non misurato da POLLnet
+
+    def test_stazioni_vicine(self):
+        vicine = pollnet.stazioni_vicine(self.stazioni, 41.89, 12.51)  # Roma
+        self.assertEqual(vicine[0][0].nome, "Roma Tor Vergata")
+        self.assertLess(vicine[0][1], 15)
+        self.assertTrue(all(d <= pollnet.DISTANZA_MAX_KM for _, d in vicine))
+        self.assertEqual(pollnet.stazioni_vicine(self.stazioni, 40.7, -74.0), [])  # New York
+
+    def test_scarica_misure_ripiega_sulla_stazione_successiva(self):
+        roma, napoli = self.per_nome["Roma Tor Vergata"], self.per_nome["Napoli - Via don Bosco"]
+
+        def wfs(tipo, filtro=None, campi=None):
+            for s in (roma, napoli):
+                if filtro and filtro.startswith(f"STAT_ID={s.id} "):
+                    return self.record[s.id]
+            return []
+
+        # la stazione più vicina (Roma) ha solo giorni non analizzati: si passa alla seguente
+        with mock.patch.object(pollnet, "scarica_stazioni", return_value=[roma, napoli]), \
+                mock.patch.object(pollnet, "stazioni_vicine", return_value=[(roma, 9.0), (napoli, 40.0)]), \
+                mock.patch.object(pollnet, "_wfs", side_effect=wfs):
+            misure = pollnet.scarica_misure(41.0, 13.0, self.oggi)
+        self.assertEqual(misure["parietaria"].stazione, "Napoli - Via don Bosco")
+        self.assertNotIn("cladosporium", misure)  # non misurato da POLLnet
+
+    def test_scarica_misure_servizio_non_disponibile(self):
+        with mock.patch.object(pollnet, "scarica_stazioni", side_effect=pollnet.ErroreAPI("giù")):
+            with self.assertRaises(pollnet.ErroreAPI):
+                pollnet.scarica_misure(40.85, 14.27, self.oggi)
+        with mock.patch.object(pollnet, "scarica_stazioni", return_value=[]):  # nessuna stazione
+            self.assertEqual(pollnet.scarica_misure(40.7, -74.0, self.oggi), {})
+
+    def test_cli_servizio_non_disponibile(self):
+        luogo, dati = carica("roma_maggio")
+        with mock.patch("bollettino_allergie.cli.cerca_luogo", return_value=luogo), \
+                mock.patch("bollettino_allergie.cli.scarica_previsioni", return_value=dati), \
+                mock.patch("bollettino_allergie.cli.scarica_misure", side_effect=pollnet.ErroreAPI("giù")), \
+                mock.patch("builtins.print") as stampa:
+            self.assertEqual(main(["Roma", "-a", "parietaria"]), 0)
+        self.assertIn("stime stagionali", stampa.call_args_list[0].args[0])
+
+    def test_filtro_include_i_totali(self):
+        f = pollnet.filtro_stazione(131, [1362], self.oggi)
+        self.assertIn("PART_ID IN (1,2,1362)", f)
+        self.assertIn("REMA_DATE<='2026-10-24'", f)
+
+    def test_bollettino_con_misure(self):
+        s = self.per_nome["Napoli - Via don Bosco"]
+        misure = pollnet.misure_da_record(self.record[s.id], s, 1.9, self.oggi)
+        per_allergene = {a.id: m for a in ALLERGENI if a.pollnet_particelle
+                         and (m := pollnet.combina(misure, a.pollnet_particelle))}
+        napoli = Luogo("Napoli", 40.85, 14.27)
+        dati = {"hourly": {"time": ["2026-10-24T00:00"], "grass_pollen": [0.1]}}
+        b = crea_bollettino(napoli, dati, cerca_allergeni(["parietaria", "pino", "cladosporium"]), per_allergene)
+        g = b.giorni[0]
+        par = rilevazione(g, "parietaria")
+        self.assertEqual((par.tipo, par.unita, par.media, par.livello), ("misura", "granuli/m³", 7.6, "basso"))
+        self.assertEqual(par.misura["stazione"], "Napoli - Via don Bosco")
+        self.assertEqual(rilevazione(g, "pino").livello, "medio")
+        self.assertEqual(rilevazione(g, "cladosporium").tipo, "stagionale")
+        self.assertEqual(b.to_dict()["giorni"][0]["allergeni"][0]["soglie"], (2, 20, 70))
+        evidenza = "\n".join(in_evidenza(g.rilevazioni))
+        self.assertIn("livello BASSO", evidenza)
+        self.assertIn("8 5 5 7 10 10 8", evidenza)
+
+    def test_evidenza_senza_stazione(self):
+        g = crea_bollettino(*carica("roma_maggio"), cerca_allergeni(["parietaria"])).giorni[0]
+        self.assertIn("stima dal calendario", "\n".join(in_evidenza(g.rilevazioni)))
+        self.assertEqual(in_evidenza([]), [])
+
+
 class TestInterfacce(unittest.TestCase):
     def setUp(self):
         luogo, dati = carica("milano_agosto")
-        for nome, valore in (("cerca_luogo", luogo), ("scarica_previsioni", dati)):
+        for nome, valore in (("cerca_luogo", luogo), ("scarica_previsioni", dati), ("scarica_misure", {})):
             for modulo in ("cli", "web"):
                 p = mock.patch(f"bollettino_allergie.{modulo}.{nome}", return_value=valore)
                 p.start()

@@ -41,6 +41,7 @@
   .giorno h3 { font-size: .8rem; color: var(--muted); margin: 10px 0 2px; text-transform: uppercase; letter-spacing: .04em; }
   .riassunto { font-size: .85rem; color: var(--muted); margin: 4px 0; }
   .barra.stima span { opacity: .55; }
+  .evidenza { border: 2px solid var(--accent); }
   @media (max-width: 520px) { .riga { grid-template-columns: 110px 1fr 120px; } .val { font-size: .8rem; } }
 </style>
 </head>
@@ -60,7 +61,8 @@
   </div>
   <div id="out"></div>
   <footer>Previsioni: Open-Meteo Air Quality API (modello CAMS, Copernicus) per 6 pollini, polveri e
-    inquinanti. * = stima stagionale dal calendario pollinico, adattata a latitudine e quota.
+    inquinanti. ° = misura della stazione POLLnet (ISPRA) più vicina, ultima settimana disponibile.
+    * = stima stagionale dal calendario pollinico, adattata a latitudine e quota.
     Soglie indicative AAITO/POLLnet e indice europeo della qualità dell'aria.
     Non sostituisce il parere medico.</footer>
 </main>
@@ -78,10 +80,23 @@ function sezione(titolo, gruppo) {
   return `<h3>${esc(titolo)}</h3>` + presenti.map(a => {
     const stima = a.tipo === 'stagionale';
     const w = Math.min(100, a.valore / a.soglie[2] * 100);
-    return `<div class="riga"><span>${esc(a.nome)}${stima ? '*' : ''}</span>
+    return `<div class="riga"><span>${esc(a.nome)}${stima ? '*' : a.tipo === 'misura' ? '°' : ''}</span>
       <div class="barra${stima ? ' stima' : ''}"><span class="${a.livello}" style="width:${w}%"></span></div>
       <span class="val">${stima ? 'stima' : `${a.valore.toFixed(1)} ${esc(a.unita)}`} · ${a.livello}</span></div>`;
   }).join('') + elenco('assente', 'Assenti') + elenco(null, 'Non disponibili');
+}
+
+function inEvidenza(allergeni) {
+  const a = allergeni.find(x => x.id === 'parietaria');
+  if (!a) return '';
+  const m = a.misura;
+  const fonte = m
+    ? `misurata a <b>${esc(m.stazione)}</b> (${Math.round(m.distanza_km)} km) dal ${esc(m.dal)} al ${esc(m.al)}:
+       media <b>${m.media}</b> granuli/m³, valori giornalieri ${m.serie.map(([, v]) => v ?? '–').join(' · ')}`
+    : a.livello ? 'nessuna stazione POLLnet con dati recenti entro 60 km: stima dal calendario pollinico'
+    : 'dati non disponibili';
+  return `<section class="giorno evidenza"><h2>In evidenza: Parietaria
+    <span class="badge ${a.livello || 'assente'}">${a.livello || 'n.d.'}</span></h2><p class="consiglio">${fonte}</p></section>`;
 }
 
 async function consulta(luogo, giorni) {
@@ -90,7 +105,8 @@ async function consulta(luogo, giorni) {
     const r = await fetch(`/api/bollettino?luogo=${encodeURIComponent(luogo)}&giorni=${giorni}`);
     const d = await r.json();
     if (!r.ok) throw new Error(d.errore || r.statusText);
-    out.innerHTML = `<p><strong>${esc(d.luogo.descrizione)}</strong></p>` + d.giorni.map(g => `
+    out.innerHTML = `<p><strong>${esc(d.luogo.descrizione)}</strong></p>` +
+      (d.giorni.length ? inEvidenza(d.giorni[0].allergeni) : '') + d.giorni.map(g => `
       <section class="giorno">
         <h2>${new Date(g.data + 'T12:00').toLocaleDateString('it-IT', {weekday: 'long', day: 'numeric', month: 'long'})}
           <span class="badge ${g.livello_massimo || 'assente'}">${g.livello_massimo || 'n.d.'}</span></h2>

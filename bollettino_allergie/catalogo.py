@@ -6,6 +6,10 @@ Tre tipi di dato:
 - stagionale: per i pollini e le spore che nessun servizio gratuito prevede,
   stima dal calendario pollinico (indice 0-3), adattata a latitudine e quota.
 
+Per 18 degli allergeni stagionali (tra cui la parietaria) la rete di monitoraggio
+POLLnet di ISPRA pubblica concentrazioni misurate: dove c'è una stazione vicina con
+dati recenti, la misura sostituisce la stima (vedi pollnet.py).
+
 Le soglie (inizio dei livelli basso, medio, alto) sono indicative: AAITO/POLLnet
 per i pollini, indice europeo della qualità dell'aria (EAQI) per gli inquinanti.
 """
@@ -23,6 +27,19 @@ SOGLIE_STAGIONALI = (0.5, 1.5, 2.5)
 LATITUDINE_RIFERIMENTO = 43.0  # il calendario si riferisce all'Italia centrale, in pianura
 
 
+def livello_da_soglie(soglie: tuple[float, float, float], valore: float | None) -> str | None:
+    if valore is None:
+        return None
+    basso, medio, alto = soglie
+    if valore >= alto:
+        return "alto"
+    if valore >= medio:
+        return "medio"
+    if valore >= basso:
+        return "basso"
+    return "assente"
+
+
 @dataclass(frozen=True)
 class Allergene:
     id: str
@@ -37,18 +54,11 @@ class Allergene:
     variabile: str | None = None  # variabile dell'API Open-Meteo (solo previsione)
     calendario: tuple[float, ...] | None = None  # 12 valori mensili (solo stagionale)
     alias: tuple[str, ...] = ()
+    pollnet_particelle: tuple[int, ...] = ()  # PART_ID POLLnet, sommati se più di uno
+    pollnet_soglie: tuple[float, float, float] | None = None  # soglie ufficiali per le misure
 
     def livello(self, valore: float | None) -> str | None:
-        if valore is None:
-            return None
-        basso, medio, alto = self.soglie
-        if valore >= alto:
-            return "alto"
-        if valore >= medio:
-            return "medio"
-        if valore >= basso:
-            return "basso"
-        return "assente"
+        return livello_da_soglie(self.soglie, valore)
 
     def indice_stagionale(self, giorno: date, ritardo_giorni: float = 0) -> float:
         """Interpola il calendario mensile (valori a metà mese) al giorno indicato."""
@@ -96,6 +106,10 @@ def _carica() -> tuple[dict[str, str], tuple[Allergene, ...]]:
         a["alias"] = tuple(a.get("alias", ()))
         if stagionale:
             a["calendario"] = tuple(a["calendario"])
+        pollnet = a.pop("pollnet", None)
+        if pollnet:
+            a["pollnet_particelle"] = tuple(pollnet["particelle"])
+            a["pollnet_soglie"] = tuple(pollnet["soglie"])
         allergeni.append(Allergene(**a))
     return dati["categorie"], tuple(allergeni)
 

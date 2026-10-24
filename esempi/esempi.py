@@ -6,13 +6,14 @@
 
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from bollettino_allergie import (Luogo, cerca_allergeni, cerca_luogo,  # noqa: E402
-                                 crea_bollettino, scarica_previsioni)
-from bollettino_allergie.cli import formatta  # noqa: E402
+from bollettino_allergie import (ALLERGENI, Luogo, cerca_allergeni, cerca_luogo,  # noqa: E402
+                                 crea_bollettino, pollnet, scarica_previsioni)
+from bollettino_allergie.cli import formatta, in_evidenza  # noqa: E402
 
 DATI = Path(__file__).parent / "dati"
 
@@ -47,8 +48,25 @@ for g in b.giorni:
     stato = f"EVITA attività all'aperto ({', '.join(critici)})" if critici else "ok con precauzioni"
     print(f"{g.data}: {stato}")
 
+# Esempio 4: parietaria misurata dalle stazioni POLLnet (istantanea reale del 24/10/2026).
+# Il calendario la darebbe quasi finita a fine ottobre, ma a Bolzano è ancora a livello medio.
+titolo("Esempio 4 - Parietaria misurata: Napoli, Bolzano, Roma (POLLnet, 24 ottobre)")
+istantanea = json.loads((DATI / "pollnet_24ottobre.json").read_text())
+oggi = date.fromisoformat(istantanea["oggi"])
+fine_ottobre = {"hourly": {"time": ["2026-10-24T12:00"], "grass_pollen": [0.1]}}
+for nome, (lat, lon) in {"Napoli - Via don Bosco": (40.85, 14.27), "Bolzano": (46.5, 11.35),
+                         "Roma Tor Vergata": (41.89, 12.51)}.items():
+    stazione = next(pollnet.Stazione(**s) for s in istantanea["stazioni"] if s["nome"] == nome)
+    misure = pollnet.misure_da_record(istantanea["record"][str(stazione.id)], stazione,
+                                      pollnet.distanza_km(lat, lon, stazione.latitudine, stazione.longitudine), oggi)
+    per_allergene = {a.id: m for a in ALLERGENI if (m := pollnet.combina(misure, a.pollnet_particelle))}
+    b = crea_bollettino(Luogo(nome.split(" ")[0], lat, lon), fine_ottobre, cerca_allergeni(["parietaria"]),
+                        per_allergene)
+    print(f"{nome.split(' ')[0]} -", "\n".join(in_evidenza(b.giorni[0].rilevazioni)))
+
 if "--live" in sys.argv:
-    # Esempio 4: dati reali di oggi
-    titolo("Esempio 4 - Firenze, dati reali (Open-Meteo)")
+    # Esempio 5: dati reali di oggi, con le misure POLLnet
+    titolo("Esempio 5 - Firenze, dati reali (Open-Meteo + POLLnet)")
     luogo = cerca_luogo("Firenze")
-    print(formatta(crea_bollettino(luogo, scarica_previsioni(luogo, giorni=2))))
+    misure = pollnet.scarica_misure(luogo.latitudine, luogo.longitudine)
+    print(formatta(crea_bollettino(luogo, scarica_previsioni(luogo, giorni=2), misure=misure)))

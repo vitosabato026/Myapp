@@ -65,6 +65,15 @@
   .assente { background: var(--assente); color: var(--text); } .basso { background: var(--basso); }
   .medio { background: var(--medio); color: #222; } .alto { background: var(--alto); }
   .vuoto { color: var(--muted); }
+  .evidenza { background: var(--card); border: 2px solid var(--accent); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .evidenza h2 { font-size: 1.05rem; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .evidenza h2 small { color: var(--muted); font-weight: 400; font-size: .8rem; flex: 1; }
+  .fonte { font-size: .9rem; margin: 0 0 8px; }
+  .grafico { display: flex; gap: 6px; align-items: flex-end; height: 72px; margin: 8px 0 4px; }
+  .colonna { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+  .colonna span { display: block; width: 100%; border-radius: 4px 4px 0 0; }
+  .colonna span.vuota { background: var(--border); }
+  .colonna small { color: var(--muted); font-size: .7rem; margin-top: 2px; }
   footer { color: var(--muted); font-size: .75rem; margin-top: 20px; }
 </style>
 </head>
@@ -87,7 +96,7 @@
   <details>
     <summary>Le mie allergie</summary>
     <div id="filtri"></div>
-    <p class="nota">Nessuna selezione = tutti. <sup>*</sup> stima stagionale dal calendario pollinico: nessun servizio gratuito ne fornisce previsioni giornaliere.</p>
+    <p class="nota">Nessuna selezione = tutti. <sup>*</sup> senza previsione: misura della stazione POLLnet più vicina, se disponibile, altrimenti stima dal calendario pollinico.</p>
   </details>
 
   <div class="luogo"><span id="luogo-nome"></span><span id="luogo-fonte"></span></div>
@@ -95,11 +104,13 @@
   <div id="risultati"></div>
 
   <footer>Previsioni: Open-Meteo Air Quality API (modello CAMS, Copernicus) per 6 pollini (solo Europa),
-    polveri e inquinanti. Stime stagionali: calendario pollinico dell'Italia centrale adattato a latitudine
+    polveri e inquinanti. Misure: rete di monitoraggio aerobiologico POLLnet (ISPRA), stazione più vicina
+    entro 60 km, dati dell'ultima settimana disponibile. Stime stagionali: calendario pollinico dell'Italia centrale adattato a latitudine
     e quota (legge di Hopkins). Nome della località: BigDataCloud. Soglie indicative AAITO/POLLnet e
     indice europeo della qualità dell'aria. Non sostituisce il parere medico.</footer>
 </main>
 <script src="bollettino.js"></script>
+<script src="pollnet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

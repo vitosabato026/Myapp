@@ -5,7 +5,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import date
 
 from .api import Luogo
-from .catalogo import ALLERGENI, CATEGORIE, LIVELLI, PER_ID, Allergene, ritardo_fenologico
+from .catalogo import (ALLERGENI, CATEGORIE, LIVELLI, PER_ID, Allergene, livello_da_soglie,
+                       ritardo_fenologico)
+from .pollnet import Misura
 
 CONSIGLI = {
     "assente": "Nessun rischio rilevante.",
@@ -25,12 +27,13 @@ class Rilevazione:
     nome: str
     famiglia: str
     categoria: str
-    tipo: str
+    tipo: str  # previsione, stagionale o misura (stazione POLLnet)
     unita: str
     media: float | None
     picco: float | None
     valore: float | None  # valore confrontato con le soglie (media, picco o indice stagionale)
     livello: str | None
+    misura: dict | None = None  # stazione, periodo e serie giornaliera, se tipo == "misura"
 
 
 @dataclass
@@ -65,7 +68,7 @@ class Bollettino:
                     "data": g.data,
                     "livello_massimo": g.livello_massimo,
                     "consiglio": g.consiglio,
-                    "allergeni": [{**asdict(r), "soglie": PER_ID[r.id].soglie}
+                    "allergeni": [{**asdict(r), "soglie": soglie(PER_ID[r.id], r.tipo)}
                                   for r in g.rilevazioni],
                 }
                 for g in self.giorni
@@ -73,15 +76,22 @@ class Bollettino:
         }
 
 
-def crea_bollettino(luogo: Luogo, dati: dict,
-                    allergeni: list[Allergene] | None = None) -> Bollettino:
+def soglie(a: Allergene, tipo: str) -> tuple[float, float, float]:
+    return a.pollnet_soglie if tipo == "misura" else a.soglie
+
+
+def crea_bollettino(luogo: Luogo, dati: dict, allergeni: list[Allergene] | None = None,
+                    misure: dict[str, Misura] | None = None) -> Bollettino:
     """Aggrega i valori orari dell'API in medie e picchi giornalieri.
 
     Per le previsioni il livello si basa sulla media giornaliera (sul picco
     orario per ozono e biossido di azoto), come nei bollettini ufficiali.
-    Le stime stagionali valgono solo dove il modello dei pollini è disponibile
-    (Europa), perché il calendario è tarato sul clima europeo.
+    Per gli allergeni stagionali con una misura POLLnet recente (vedi
+    pollnet.scarica_misure) il livello è quello misurato nell'ultima settimana,
+    altrimenti è la stima dal calendario, che vale solo dove il modello dei
+    pollini è disponibile (Europa) perché è tarato sul clima europeo.
     """
+    misure = misure or {}
     allergeni = allergeni or list(ALLERGENI)
     orari = dati.get("hourly", {})
     tempi = orari.get("time", [])
@@ -103,7 +113,11 @@ def crea_bollettino(luogo: Luogo, dati: dict,
     for data in sorted(valori):
         giorno = Giorno(data)
         for a in allergeni:
-            if a.tipo == "stagionale":
+            tipo, unita, misura = a.tipo, a.unita, misure.get(a.id)
+            if misura:
+                tipo, unita = "misura", "spore/m³" if a.categoria == "spore" else "granuli/m³"
+                media, picco, valore = misura.media, misura.picco, misura.media
+            elif a.tipo == "stagionale":
                 indice = (a.indice_stagionale(date.fromisoformat(data), ritardo)
                           if copertura_europea else None)
                 media, picco, valore = indice, None, indice
@@ -112,8 +126,9 @@ def crea_bollettino(luogo: Luogo, dati: dict,
                 media = round(sum(serie) / len(serie), 1) if serie else None
                 picco = round(max(serie), 1) if serie else None
                 valore = picco if a.metrica == "picco" else media
+            livello = livello_da_soglie(soglie(a, tipo), valore)
             giorno.rilevazioni.append(Rilevazione(
-                a.id, a.nome, a.famiglia, a.categoria, a.tipo, a.unita,
-                media, picco, valore, a.livello(valore)))
+                a.id, a.nome, a.famiglia, a.categoria, tipo, unita, media, picco, valore, livello,
+                misura.to_dict() if misura else None))
         giorni.append(giorno)
     return Bollettino(luogo, giorni)

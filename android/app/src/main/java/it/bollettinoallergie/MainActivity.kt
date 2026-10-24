@@ -22,6 +22,10 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.webkit.WebViewAssetLoader
 import org.json.JSONObject
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URI
+import java.util.concurrent.Executors
 
 /**
  * Mostra l'interfaccia (assets/www) in una WebView e le fornisce la posizione
@@ -29,12 +33,17 @@ import org.json.JSONObject
  *
  * Ponte JS -> nativo: AndroidPosizione.richiediPosizione()
  * Risposte nativo -> JS: posizioneRicevuta(lat, lon, precisione) / posizioneErrore(messaggio)
+ *
+ * Fornisce anche gli scaricamenti dal servizio POLLnet di ISPRA, che rifiuta le
+ * richieste fatte dal browser (CORS): AndroidRete.scarica(id, url) -> reteRisposta(id, ok, testo).
+ * Sono ammessi solo gli host in HOST_CONSENTITI.
  */
 class MainActivity : Activity() {
 
     private lateinit var webView: WebView
     private val handler = Handler(Looper.getMainLooper())
     private var annullaRichiesta: (() -> Unit)? = null
+    private val rete = Executors.newFixedThreadPool(2)
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,6 +71,7 @@ class MainActivity : Activity() {
                 }
             }
             addJavascriptInterface(Ponte(), "AndroidPosizione")
+            addJavascriptInterface(Rete(), "AndroidRete")
         }
 
         val contenitore = FrameLayout(this).apply { addView(webView) }
@@ -79,6 +89,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         annullaRichiesta?.invoke()
+        rete.shutdownNow()
         webView.destroy()
         super.onDestroy()
     }
@@ -87,6 +98,38 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun richiediPosizione() {
             runOnUiThread { avviaLocalizzazione() }
+        }
+    }
+
+    private inner class Rete {
+        @JavascriptInterface
+        fun scarica(id: String, url: String) {
+            rete.execute {
+                val (ok, testo) = try {
+                    true to leggi(url)
+                } catch (e: Exception) {
+                    false to (e.message ?: e.javaClass.simpleName)
+                }
+                runOnUiThread {
+                    if (!isDestroyed) eseguiJs("reteRisposta(${JSONObject.quote(id)}, $ok, ${JSONObject.quote(testo)})")
+                }
+            }
+        }
+    }
+
+    private fun leggi(indirizzo: String): String {
+        val url = URI(indirizzo).toURL()
+        if (url.protocol != "https" || url.host !in HOST_CONSENTITI) throw IOException("Host non consentito")
+        val connessione = url.openConnection() as HttpURLConnection
+        connessione.connectTimeout = 15_000
+        connessione.readTimeout = 30_000
+        try {
+            if (connessione.responseCode != HttpURLConnection.HTTP_OK) {
+                throw IOException("HTTP ${connessione.responseCode}")
+            }
+            return connessione.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            connessione.disconnect()
         }
     }
 
@@ -171,6 +214,7 @@ class MainActivity : Activity() {
         const val RICHIESTA_PERMESSO = 1
         const val TIMEOUT_MS = 30_000L
         const val VALIDITA_ULTIMA_MS = 15 * 60_000L
+        val HOST_CONSENTITI = setOf("sdi.isprambiente.it")
         val PROVIDER = listOf("fused", LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
     }
 }

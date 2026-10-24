@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse
 from .api import ErroreAPI, cerca_luogo, scarica_previsioni
 from .bollettino import crea_bollettino
 from .catalogo import cerca_allergeni
+from .pollnet import scarica_misure
 
 
 def bollettino_json(query: dict[str, list[str]]) -> tuple[int, dict]:
@@ -23,7 +24,11 @@ def bollettino_json(query: dict[str, list[str]]) -> tuple[int, dict]:
         nomi = (query.get("allergie") or query.get("pollini") or [""])[0]
         allergeni = cerca_allergeni(nomi.split(",")) if nomi else None
         trovato = cerca_luogo(luogo)
-        b = crea_bollettino(trovato, scarica_previsioni(trovato, giorni), allergeni)
+        try:
+            misure = scarica_misure(trovato.latitudine, trovato.longitudine)
+        except ErroreAPI:
+            misure = {}  # senza misure valgono le stime stagionali
+        b = crea_bollettino(trovato, scarica_previsioni(trovato, giorni), allergeni, misure)
     except ValueError as e:
         return 400, {"errore": str(e)}
     except ErroreAPI as e:

@@ -35,8 +35,12 @@
   }
 
   function livello(allergene, valore) {
+    return livelloDaSoglie(allergene.soglie, valore);
+  }
+
+  function livelloDaSoglie(soglie, valore) {
     if (valore == null) return null;
-    const [basso, medio, alto] = allergene.soglie;
+    const [basso, medio, alto] = soglie;
     if (valore >= alto) return 'alto';
     if (valore >= medio) return 'medio';
     if (valore >= basso) return 'basso';
@@ -77,10 +81,12 @@
 
   /**
    * Aggrega i valori orari della Air Quality API di Open-Meteo in livelli giornalieri.
-   * opzioni: { ids: allergeni da includere (default tutti), latitudine, quota }
+   * opzioni: { ids: allergeni da includere (default tutti), latitudine, quota,
+   *            misure: { id allergene -> misura POLLnet } (vedi pollnet.js) }
    */
   function creaBollettino(dati, catalogo, opzioni = {}) {
     const ids = opzioni.ids || [];
+    const misure = opzioni.misure || {};
     const allergeni = ids.length ? catalogo.allergeni.filter((a) => ids.includes(a.id)) : catalogo.allergeni;
     const orari = (dati && dati.hourly) || {};
     const tempi = orari.time || [];
@@ -103,7 +109,15 @@
     return [...valori.keys()].sort().map((data) => {
       const rilevazioni = allergeni.map((a) => {
         let media, picco, valore;
-        if (a.tipo === 'stagionale') {
+        let tipo = a.tipo, unita = a.unita, soglie = a.soglie;
+        const misura = misure[a.id] || null;
+        if (misura) {
+          tipo = 'misura';
+          unita = a.categoria === 'spore' ? 'spore/m³' : 'granuli/m³';
+          soglie = a.pollnet.soglie;
+          media = valore = misura.media;
+          picco = misura.picco;
+        } else if (a.tipo === 'stagionale') {
           media = valore = coperturaEuropea ? indiceStagionale(a.calendario, data, ritardo) : null;
           picco = null;
         } else {
@@ -113,8 +127,8 @@
           valore = a.metrica === 'picco' ? picco : media;
         }
         return {
-          id: a.id, nome: a.nome, categoria: a.categoria, tipo: a.tipo, unita: a.unita,
-          soglie: a.soglie, media, picco, valore, livello: livello(a, valore),
+          id: a.id, nome: a.nome, categoria: a.categoria, tipo, unita,
+          soglie, media, picco, valore, livello: livelloDaSoglie(soglie, valore), misura,
         };
       });
       const livelli = rilevazioni.map((r) => r.livello).filter(Boolean);
@@ -130,7 +144,7 @@
   }
 
   const api = {
-    LIVELLI, CONSIGLI, preparaCatalogo, livello, versoRitardo, ritardoFenologico,
+    LIVELLI, CONSIGLI, preparaCatalogo, livello, livelloDaSoglie, versoRitardo, ritardoFenologico,
     indiceStagionale, creaBollettino,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
