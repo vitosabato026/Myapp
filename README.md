@@ -37,6 +37,7 @@ Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans
 | Classifica, calendario, risultati, tabellini | [livescore.calciowebpuglia.it](https://livescore.calciowebpuglia.it/stagioni/26-27/promozione/gironi/girone-b/classifica), la stessa fonte delle dirette di SalentoSport |
 | Classifica marcatori | Calcolata dall'app dai tabellini (esclusi autogol e gare a tavolino) |
 | Notizie | API pubblica di [salentosport.net](https://www.salentosport.net/) (categoria Promozione) |
+| Loghi delle squadre | Le immagini di [livescore.calciowebpuglia.it](https://livescore.calciowebpuglia.it/) (`/img/loghi/`), ritagliate e ridotte a 192 px in `res/drawable-nodpi/logo_*.png`; inclusi nell'app, funzionano offline. Per squadre nuove l'app mostra un cerchio con la sigla finché non si aggiunge il logo |
 | Profili social | Ricerca web; Sporting Oria indicati dal committente. Sono in `data/Teams.kt` |
 
 Tuttocampo.it è protetto da un controllo anti-bot (AWS WAF) che blocca la lettura automatica: l'app non ne legge i dati, ma apre nel browser la pagina della partita (`data/Tuttocampo.kt`). Il sito numera le partite di ogni giornata d'andata in ordine alfabetico della squadra di casa e al ritorno ripete il numero dell'andata: regola ricavata da tre indirizzi reali e verificata nei test. Se una squadra cambia nome su Tuttocampo va aggiornato `tuttocampoName` in `Teams.kt`. Formazioni, ammonizioni e cronaca non sono pubblicate dalle fonti usate.
@@ -55,7 +56,7 @@ I test generano anche gli screenshot di tutte le schermate, in tema chiaro e scu
 ## Da sistemare a ogni stagione
 
 - URL della stagione in `LeagueRepository` (`26-27`).
-- Squadre e social in `Teams.kt`.
+- Squadre, social e nomi Tuttocampo in `Teams.kt`; loghi in `res/drawable-nodpi/` e in `teamLogo()` (`ui/components/Components.kt`).
 - Zone di classifica in `StandingsScreen.kt` (valori indicativi, da verificare sul comunicato del Comitato Regionale Puglia).
 
 ## Licenze

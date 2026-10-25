@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import kotlinx.coroutines.delay
+import it.promozionepuglia.gironeb.R
 import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.ROME
 import it.promozionepuglia.gironeb.data.Team
@@ -41,9 +46,14 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Cerchio colorato con la sigla della squadra. */
+/** Logo della squadra; per le squadre fuori anagrafica, un cerchio colorato con la sigla. */
 @Composable
 fun TeamBadge(team: Team, size: Dp = 24.dp) {
+    val logo = teamLogo(team.key)
+    if (logo != null) {
+        Image(painterResource(logo), contentDescription = null, modifier = Modifier.size(size), contentScale = ContentScale.Fit)
+        return
+    }
     Box(
         modifier = Modifier.size(size).clip(CircleShape).background(Color(team.color)),
         contentAlignment = Alignment.Center,
@@ -56,6 +66,28 @@ fun TeamBadge(team: Team, size: Dp = 24.dp) {
             maxLines = 1,
         )
     }
+}
+
+/** Loghi ufficiali, dalle pagine di livescore.calciowebpuglia.it. */
+@DrawableRes
+private fun teamLogo(key: String): Int? = when (key) {
+    "ERC" -> R.drawable.logo_erc
+    "ORI" -> R.drawable.logo_ori
+    "LAT" -> R.drawable.logo_lat
+    "GRO" -> R.drawable.logo_gro
+    "GIN" -> R.drawable.logo_gin
+    "TAV" -> R.drawable.logo_tav
+    "TRI" -> R.drawable.logo_tri
+    "TRE" -> R.drawable.logo_tre
+    "MAT" -> R.drawable.logo_mat
+    "SAV" -> R.drawable.logo_sav
+    "RUF" -> R.drawable.logo_ruf
+    "MAN" -> R.drawable.logo_man
+    "LOC" -> R.drawable.logo_loc
+    "SVI" -> R.drawable.logo_svi
+    "LEV" -> R.drawable.logo_lev
+    "MES" -> R.drawable.logo_mes
+    else -> null
 }
 
 @Composable
