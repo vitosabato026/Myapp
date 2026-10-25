@@ -38,7 +38,7 @@ class NavigationTest {
 
     private fun resource(name: String) = requireNotNull(javaClass.classLoader?.getResource(name)).readText()
 
-    private fun startApp() {
+    private fun startApp(pendingRoute: String? = null) {
         val snapshot = LeagueSnapshot(
             standings = CalcioWebPugliaParser.parseStandings(resource("classifica_sample.html")),
             matches = CalcioWebPugliaParser.parseCalendar(resource("calendario_sample.html")),
@@ -54,7 +54,7 @@ class NavigationTest {
             LeagueRepository(cache, offline),
             SettingsStore(ApplicationProvider.getApplicationContext()),
         )
-        compose.setContent { PromozioneTheme(ThemeMode.LIGHT) { AppRoot(viewModel) } }
+        compose.setContent { PromozioneTheme(ThemeMode.LIGHT) { AppRoot(viewModel, pendingRoute) } }
         compose.waitForIdle()
     }
 
@@ -91,5 +91,26 @@ class NavigationTest {
         compose.waitForIdle()
         clickTab("Home")
         assertTrue(isHomeShown())
+    }
+
+    private fun isMatchShown() =
+        compose.onAllNodesWithText("Le squadre in classifica").fetchSemanticsNodes().isNotEmpty()
+
+    @Test
+    fun tappingAMatchOpensItsDetail() {
+        startApp()
+        clickTab("Partite")
+        // 7ª giornata: Atletico Tricase - F. Taviano 2-0.
+        compose.onNodeWithText("33' Martella, 82' Desiderato").performClick()
+        compose.waitForIdle()
+        assertTrue(isMatchShown())
+        compose.onNodeWithText("Martella").assertExists()
+    }
+
+    @Test
+    fun goalNotificationOpensTheMatch() {
+        startApp(pendingRoute = "partita/7/TRI")
+        assertTrue(isMatchShown())
+        compose.onNodeWithText("Desiderato").assertExists()
     }
 }

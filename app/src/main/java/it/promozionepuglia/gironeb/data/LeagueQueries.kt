@@ -74,3 +74,24 @@ fun LeagueSnapshot.stats(): LeagueStats {
         bestDefense = standings.minByOrNull { it.total.goalsAgainst },
     )
 }
+
+fun LeagueSnapshot.findMatch(round: Int, homeKey: String): Match? =
+    matches.firstOrNull { it.round == round && it.homeKey == homeKey }
+
+/** L'altra sfida tra le stesse squadre (andata o ritorno). */
+fun LeagueSnapshot.otherLeg(m: Match): Match? =
+    matches.firstOrNull { it.homeKey == m.awayKey && it.awayKey == m.homeKey }
+
+/**
+ * Notizie che nominano entrambe le squadre, uscite nei 4 giorni prima o dopo la partita
+ * (così i riepiloghi di altre giornate non contano), dalla più recente.
+ */
+fun LeagueSnapshot.newsAbout(m: Match, limit: Int = 3): List<NewsItem> {
+    val kickoff = m.kickoffAt()?.toLocalDateTime() ?: return emptyList()
+    return news.filter { item ->
+        val date = runCatching { java.time.LocalDateTime.parse(item.date) }.getOrNull() ?: return@filter false
+        val text = item.title + " " + item.excerpt
+        date.isAfter(kickoff.minusDays(4)) && date.isBefore(kickoff.plusDays(4)) &&
+            Teams.mentionedIn(m.homeKey, text) && Teams.mentionedIn(m.awayKey, text)
+    }.sortedByDescending { it.date }.take(limit)
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pallone stilizzato, monocromatico per la barra di stato. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2A10,10 0,1 1,12 22A10,10 0,1 1,12 2ZM12,4A8,8 0,1 0,12 20A8,8 0,1 0,12 4ZM12,7.5L15.8,10.3L14.35,14.8L9.65,14.8L8.2,10.3Z" />
+</vector>

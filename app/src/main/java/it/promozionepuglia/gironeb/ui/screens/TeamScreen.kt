@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.promozionepuglia.gironeb.data.LeagueSnapshot
+import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.Scorer
 import it.promozionepuglia.gironeb.data.Teams
 import it.promozionepuglia.gironeb.data.form
@@ -42,7 +43,7 @@ import it.promozionepuglia.gironeb.ui.components.openUrl
 import it.promozionepuglia.gironeb.ui.theme.AppTheme
 
 @Composable
-fun TeamScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, teamKey: String, onTeamClick: (String) -> Unit) {
+fun TeamScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, teamKey: String, onMatchClick: (Match) -> Unit = {}, onTeamClick: (String) -> Unit) {
     val c = AppTheme.colors
     val context = LocalContext.current
     val team = Teams.byKey(teamKey)
@@ -93,7 +94,7 @@ fun TeamScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, teamKey: String,
         if (next != null) item {
             val home = next.homeKey == teamKey
             val opp = Teams.byKey(if (home) next.awayKey else next.homeKey)
-            Card(Modifier.clickable { onTeamClick(opp.key) }, padding = 14.dp) {
+            Card(Modifier.clickable { onMatchClick(next) }, padding = 14.dp) {
                 if (next.isLive) {
                     Text("${liveLabel(next)} · ${next.round}ª giornata", color = c.live,
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -119,7 +120,7 @@ fun TeamScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, teamKey: String,
                     val home = m.homeKey == teamKey
                     val opp = Teams.byKey(if (home) m.awayKey else m.homeKey)
                     Row(
-                        Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable { onTeamClick(opp.key) },
+                        Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable { onMatchClick(m) },
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Text("${m.round}ª", color = c.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(26.dp))

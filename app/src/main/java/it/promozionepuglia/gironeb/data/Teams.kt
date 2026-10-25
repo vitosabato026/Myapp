@@ -95,6 +95,24 @@ object Teams {
         Team(key, name, name, 0xFF5A6B82)
     }
 
+    /**
+     * Se il testo nomina la squadra con uno dei suoi nomi. Le forme abbreviate ("V. Erchie")
+     * contano anche con la sola parte significativa ("Erchie"), purché di almeno 4 lettere.
+     */
+    fun mentionedIn(key: String, text: String): Boolean {
+        val team = byKey(key)
+        val haystack = " " + normalize(text) + " "
+        val names = listOf(team.name, team.fullName) + team.aliases
+        return names.any { name ->
+            val n = normalize(name)
+            val core = n.split(' ').lastOrNull { it.length >= 4 && it !in COMMON_WORDS }
+            haystack.contains(" $n ") || (core != null && haystack.contains(" $core "))
+        }
+    }
+
+    /** Parole dei nomi che non bastano da sole a identificare una squadra. */
+    private val COMMON_WORDS = setOf("calcio", "virtus", "sporting", "football", "real", "atletico", "sport", "1955", "1923", "1948", "1967", "2020")
+
     /** Sigla di tre lettere per il badge. */
     fun abbreviation(team: Team): String =
         if (byKey.containsKey(team.key)) team.key

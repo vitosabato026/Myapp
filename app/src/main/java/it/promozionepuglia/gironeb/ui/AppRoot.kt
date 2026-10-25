@@ -1,5 +1,22 @@
 package it.promozionepuglia.gironeb.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import it.promozionepuglia.gironeb.data.GoalAlerts
+import it.promozionepuglia.gironeb.data.Match
+import it.promozionepuglia.gironeb.data.Teams
+import it.promozionepuglia.gironeb.notifications.GoalNotifier
+import it.promozionepuglia.gironeb.ui.screens.MatchScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,17 +84,34 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
 }
 
 private const val TEAM_ROUTE = "squadra/{key}"
+private const val MATCH_ROUTE = "partita/{round}/{home}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppRoot(viewModel: AppViewModel) {
+fun AppRoot(viewModel: AppViewModel, pendingRoute: String? = null, onPendingRouteHandled: () -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val goalAlerts by viewModel.goalAlerts.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
     val c = AppTheme.colors
+
+    val context = LocalContext.current
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) {
+            Toast.makeText(context, "Per ricevere i gol attiva le notifiche nelle impostazioni del telefono", Toast.LENGTH_LONG).show()
+        }
+    }
+    fun needsPermission() = Build.VERSION.SDK_INT >= 33 &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+    // Al primo avvio chiede il permesso per le notifiche dei gol (attive di serie).
+    LaunchedEffect(Unit) {
+        if (needsPermission() && viewModel.shouldAskNotificationPermission()) {
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // Aggiorna a ogni apertura e, con l'app visibile, segue le partite in diretta.
     LifecycleStartEffect(viewModel) {
@@ -105,7 +139,13 @@ fun AppRoot(viewModel: AppViewModel) {
                         }
                     }
                 },
-                actions = { ThemeMenu(themeMode, c.isDark, viewModel::setThemeMode) },
+                actions = {
+                    GoalAlertsMenu(goalAlerts) { alerts ->
+                        viewModel.setGoalAlerts(alerts)
+                        if (alerts != GoalAlerts.Off && needsPermission()) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    ThemeMenu(themeMode, c.isDark, viewModel::setThemeMode)
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = c.bg, titleContentColor = c.text),
             )
         },
@@ -136,29 +176,53 @@ fun AppRoot(viewModel: AppViewModel) {
             if (snapshot == null) {
                 EmptyState(loading = state.loading, error = state.error, onRetry = viewModel::refresh)
             } else {
-                AppNavHost(nav, snapshot, state, viewModel)
+                AppNavHost(nav, snapshot, state, pendingRoute, onPendingRouteHandled)
             }
         }
     }
 }
 
 @Composable
-private fun AppNavHost(nav: NavHostController, snapshot: LeagueSnapshot, state: UiState, viewModel: AppViewModel) {
+private fun AppNavHost(
+    nav: NavHostController,
+    snapshot: LeagueSnapshot,
+    state: UiState,
+    pendingRoute: String?,
+    onPendingRouteHandled: () -> Unit,
+) {
     val openTeam: (String) -> Unit = { key -> nav.navigate("squadra/$key") }
+    val openMatch: (Match) -> Unit = { m -> nav.navigate(GoalNotifier.matchRoute(m.round, m.homeKey)) }
+    // Tocco su una notifica di gol: apre la partita.
+    LaunchedEffect(pendingRoute) {
+        if (pendingRoute != null) {
+            nav.navigate(pendingRoute) { launchSingleTop = true }
+            onPendingRouteHandled()
+        }
+    }
     NavHost(nav, startDestination = Tab.HOME.route) {
         composable(Tab.HOME.route) {
             HomeScreen(snapshot, state.scorers, state.error, openTeam,
                 onOpenMatches = { nav.navigateToTab(Tab.MATCHES) },
                 onOpenStandings = { nav.navigateToTab(Tab.STANDINGS) },
                 onOpenScorers = { nav.navigateToTab(Tab.GOALS) },
-                onOpenNews = { nav.navigateToTab(Tab.NEWS) })
+                onOpenNews = { nav.navigateToTab(Tab.NEWS) },
+                onMatchClick = openMatch)
         }
         composable(Tab.STANDINGS.route) { StandingsScreen(snapshot, openTeam) }
-        composable(Tab.MATCHES.route) { MatchesScreen(snapshot, openTeam) }
+        composable(Tab.MATCHES.route) { MatchesScreen(snapshot, openMatch, openTeam) }
         composable(Tab.GOALS.route) { ScorersScreen(snapshot, state.scorers, openTeam) }
         composable(Tab.NEWS.route) { NewsScreen(snapshot.news) }
         composable(TEAM_ROUTE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
-            TeamScreen(snapshot, state.scorers, entry.arguments?.getString("key").orEmpty(), openTeam)
+            TeamScreen(snapshot, state.scorers, entry.arguments?.getString("key").orEmpty(), openMatch, openTeam)
+        }
+        composable(
+            MATCH_ROUTE,
+            arguments = listOf(navArgument("round") { type = NavType.IntType }, navArgument("home") { type = NavType.StringType }),
+        ) { entry ->
+            MatchScreen(
+                snapshot, entry.arguments?.getInt("round") ?: 0, entry.arguments?.getString("home").orEmpty(),
+                openTeam, openMatch,
+            )
         }
     }
 }
@@ -177,6 +241,35 @@ private fun NavHostController.navigateToTab(tab: Tab) {
         popUpTo(Tab.HOME.route) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+/** Campanella: notifiche dei gol per tutto il girone, per una squadra o spente. */
+@Composable
+private fun GoalAlertsMenu(alerts: GoalAlerts, onSelect: (GoalAlerts) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                if (alerts == GoalAlerts.Off) Icons.Filled.NotificationsOff else Icons.Filled.NotificationsActive,
+                contentDescription = "Notifiche dei gol",
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Text(
+                "Notifiche dei gol", style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                color = AppTheme.colors.muted, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            val options = listOf(GoalAlerts.All to "Tutto il girone", GoalAlerts.Off to "Disattivate") +
+                Teams.all.sortedBy { it.name }.map { GoalAlerts.Team(it.key) to "Solo ${it.name}" }
+            options.forEachIndexed { i, (option, label) ->
+                if (i == 2) HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(if (option == alerts) "✓  $label" else "     $label") },
+                    onClick = { onSelect(option); open = false },
+                )
+            }
+        }
     }
 }
 

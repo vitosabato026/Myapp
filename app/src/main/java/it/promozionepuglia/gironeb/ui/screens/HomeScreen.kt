@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.promozionepuglia.gironeb.data.LeagueSnapshot
+import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.Scorer
 import it.promozionepuglia.gironeb.data.Teams
 import it.promozionepuglia.gironeb.data.bigMatch
@@ -56,6 +57,7 @@ fun HomeScreen(
     onOpenStandings: () -> Unit,
     onOpenScorers: () -> Unit,
     onOpenNews: () -> Unit,
+    onMatchClick: (Match) -> Unit = {},
 ) {
     val c = AppTheme.colors
     val context = LocalContext.current
@@ -80,12 +82,12 @@ fun HomeScreen(
                     TextButton(onClick = onOpenMatches) { Text("Giornata") }
                 }
             }
-            items(live, key = { "live" + it.homeKey + it.awayKey }) { MatchCard(it, onTeamClick) }
+            items(live, key = { "live" + it.homeKey + it.awayKey }) { MatchCard(it, onTeamClick, onMatchClick) }
             item { LiveFootnote() }
         }
         // Se il big match è in corso è già tra le partite in diretta.
         if (big != null && !big.isLive) item {
-            Card {
+            Card(Modifier.clickable { onMatchClick(big) }) {
                 Row(Modifier.fillMaxWidth()) {
                     Text(
                         if (big.isPlayed) "${round}ª giornata · Big match" else "${round}ª giornata · Prossimo big match",
@@ -168,7 +170,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BigMatchTeam(key: String, snapshot: LeagueSnapshot, onClick: (String) -> Unit, modifier: Modifier) {
+internal fun BigMatchTeam(key: String, snapshot: LeagueSnapshot, onClick: (String) -> Unit, modifier: Modifier) {
     val team = Teams.byKey(key)
     val pos = snapshot.position(key)
     val pts = snapshot.standingOf(key)?.total?.points

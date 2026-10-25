@@ -19,6 +19,8 @@ class LeagueRepository(
     private val cacheFile: File,
     private val client: OkHttpClient = defaultClient(),
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    /** Chiamato dopo ogni aggiornamento riuscito, con i dati precedenti e i nuovi (per le notifiche). */
+    private val onUpdate: suspend (previous: LeagueSnapshot?, current: LeagueSnapshot) -> Unit = { _, _ -> },
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -46,6 +48,7 @@ class LeagueRepository(
             }
             LeagueSnapshot(s, c, n, System.currentTimeMillis()).also { snapshot ->
                 runCatching { cacheFile.writeText(json.encodeToString(LeagueSnapshot.serializer(), snapshot)) }
+                onUpdate(previous, snapshot)
             }
         }
     }

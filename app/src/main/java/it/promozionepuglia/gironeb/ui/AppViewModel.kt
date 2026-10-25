@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import it.promozionepuglia.gironeb.PromozioneApp
+import it.promozionepuglia.gironeb.data.GoalAlerts
 import it.promozionepuglia.gironeb.data.LeagueRepository
 import it.promozionepuglia.gironeb.data.LeagueSnapshot
 import it.promozionepuglia.gironeb.data.LivePolling
@@ -14,6 +15,7 @@ import it.promozionepuglia.gironeb.data.Scorer
 import it.promozionepuglia.gironeb.data.ScorersCalculator
 import it.promozionepuglia.gironeb.data.SettingsStore
 import it.promozionepuglia.gironeb.data.ThemeMode
+import it.promozionepuglia.gironeb.notifications.LiveUpdates
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,10 +39,22 @@ data class UiState(
     val error: String? = null,
 )
 
+/** Gli aggiornamenti con l'app chiusa, per le notifiche dei gol. */
+interface BackgroundUpdates {
+    fun start(snapshot: LeagueSnapshot)
+    fun stop()
+
+    object None : BackgroundUpdates {
+        override fun start(snapshot: LeagueSnapshot) = Unit
+        override fun stop() = Unit
+    }
+}
+
 class AppViewModel(
     private val repository: LeagueRepository,
     private val settings: SettingsStore,
     private val clock: () -> ZonedDateTime = { ZonedDateTime.now(ROME) },
+    private val background: BackgroundUpdates = BackgroundUpdates.None,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UiState(loading = true))
@@ -47,6 +62,9 @@ class AppViewModel(
 
     val themeMode: StateFlow<ThemeMode> =
         settings.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    val goalAlerts: StateFlow<GoalAlerts> =
+        settings.goalAlerts.stateIn(viewModelScope, SharingStarted.Eagerly, GoalAlerts.All)
 
     /** I dati salvati, letti una volta sola prima del primo aggiornamento. */
     private val cacheLoaded = viewModelScope.async {
@@ -60,6 +78,7 @@ class AppViewModel(
      * o in arrivo, continua ad aggiornare da sola.
      */
     fun onForeground() {
+        background.stop()
         foregroundJob?.cancel()
         foregroundJob = viewModelScope.launch {
             update(full = true, showProgress = true)
@@ -71,10 +90,14 @@ class AppViewModel(
         }
     }
 
-    /** L'app non è più visibile: niente aggiornamenti in background. */
+    /** L'app non è più visibile: da qui in poi aggiorna solo il controllo per le notifiche, se attive. */
     fun onBackground() {
         foregroundJob?.cancel()
         foregroundJob = null
+        val snapshot = _state.value.snapshot ?: return
+        viewModelScope.launch {
+            if (settings.goalAlerts.first() != GoalAlerts.Off) background.start(snapshot)
+        }
     }
 
     /** Trascina per aggiornare. */
@@ -105,12 +128,28 @@ class AppViewModel(
         viewModelScope.launch { settings.setThemeMode(mode) }
     }
 
+    fun setGoalAlerts(alerts: GoalAlerts) {
+        viewModelScope.launch { settings.setGoalAlerts(alerts) }
+    }
+
+    /** Chiede il permesso delle notifiche una sola volta all'avvio, se servono. */
+    suspend fun shouldAskNotificationPermission(): Boolean {
+        if (settings.notificationPermissionAsked.first() || settings.goalAlerts.first() == GoalAlerts.Off) return false
+        settings.setNotificationPermissionAsked()
+        return true
+    }
+
     private fun UiState.withSnapshot(s: LeagueSnapshot) =
         copy(snapshot = s, scorers = ScorersCalculator.compute(s.matches))
 
     companion object {
         fun factory(app: PromozioneApp): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AppViewModel(app.repository, app.settings) }
+            initializer {
+                AppViewModel(app.repository, app.settings, background = object : BackgroundUpdates {
+                    override fun start(snapshot: LeagueSnapshot) = LiveUpdates.scheduleNext(app, snapshot)
+                    override fun stop() = LiveUpdates.stop(app)
+                })
+            }
         }
     }
 }

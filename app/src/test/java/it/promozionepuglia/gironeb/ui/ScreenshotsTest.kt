@@ -18,6 +18,7 @@ import it.promozionepuglia.gironeb.data.ScorersCalculator
 import it.promozionepuglia.gironeb.data.ThemeMode
 import it.promozionepuglia.gironeb.data.remote.CalcioWebPugliaParser
 import it.promozionepuglia.gironeb.ui.screens.HomeScreen
+import it.promozionepuglia.gironeb.ui.screens.MatchScreen
 import it.promozionepuglia.gironeb.ui.screens.MatchesScreen
 import it.promozionepuglia.gironeb.ui.screens.NewsScreen
 import it.promozionepuglia.gironeb.ui.screens.ScorersScreen
@@ -79,6 +80,8 @@ class ScreenshotsTest {
     @Test fun home() = shoot("home") { HomeScreen(snapshot, scorers, null, {}, {}, {}, {}, {}) }
     @Test fun homeLive() = shoot("home_live") { HomeScreen(liveSnapshot, scorers, null, {}, {}, {}, {}, {}) }
     @Test fun matchesLive() = shoot("partite_live") { MatchesScreen(liveSnapshot) {} }
+    @Test fun matchDetail() = shoot("partita") { MatchScreen(snapshot, 6, "TAV", {}, {}) }
+    @Test fun matchDetailLive() = shoot("partita_live") { MatchScreen(liveSnapshot, 8, "MAT", {}, {}) }
     @Test fun standings() = shoot("classifica") { StandingsScreen(snapshot) {} }
     @Test fun matches() = shoot("partite") { MatchesScreen(snapshot) {} }
     @Test fun goals() = shoot("gol") { ScorersScreen(snapshot, scorers) {} }

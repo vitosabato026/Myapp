@@ -43,7 +43,7 @@ import it.promozionepuglia.gironeb.ui.components.liveLabel
 import it.promozionepuglia.gironeb.ui.theme.AppTheme
 
 @Composable
-fun MatchesScreen(snapshot: LeagueSnapshot, onTeamClick: (String) -> Unit) {
+fun MatchesScreen(snapshot: LeagueSnapshot, onMatchClick: (Match) -> Unit = {}, onTeamClick: (String) -> Unit) {
     val c = AppTheme.colors
     val rounds = snapshot.rounds
     var round by rememberSaveable {
@@ -73,20 +73,21 @@ fun MatchesScreen(snapshot: LeagueSnapshot, onTeamClick: (String) -> Unit) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(matches, key = { it.homeKey + it.awayKey + it.round }) { MatchCard(it, onTeamClick) }
+            items(matches, key = { it.homeKey + it.awayKey + it.round }) { MatchCard(it, onTeamClick, onMatchClick) }
             if (matches.any { it.isLive }) item { LiveFootnote() }
         }
     }
 }
 
 @Composable
-fun MatchCard(m: Match, onTeamClick: (String) -> Unit) {
+fun MatchCard(m: Match, onTeamClick: (String) -> Unit, onMatchClick: (Match) -> Unit = {}) {
     val c = AppTheme.colors
     val home = Teams.byKey(m.homeKey)
     val away = Teams.byKey(m.awayKey)
     val homeWon = m.isPlayed && m.homeGoals!! > m.awayGoals!!
     val awayWon = m.isPlayed && m.awayGoals!! > m.homeGoals!!
-    Card(padding = 12.dp) {
+    // Tutta la scheda apre il dettaglio; i nomi delle squadre aprono la loro pagina.
+    Card(Modifier.clickable { onMatchClick(m) }, padding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(
                 Modifier.weight(1f).clickable { onTeamClick(m.homeKey) },
