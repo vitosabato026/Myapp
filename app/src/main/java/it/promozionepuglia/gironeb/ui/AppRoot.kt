@@ -107,13 +107,7 @@ fun AppRoot(viewModel: AppViewModel) {
                 Tab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = tab == currentTab || (currentTab == null && tab == Tab.STANDINGS && route == TEAM_ROUTE),
-                        onClick = {
-                            nav.navigate(tab.route) {
-                                popUpTo(Tab.HOME.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        onClick = { nav.navigateToTab(tab) },
                         icon = { Icon(tab.icon, contentDescription = null) },
                         label = { Text(tab.label) },
                         colors = NavigationBarItemDefaults.colors(
@@ -147,10 +141,10 @@ private fun AppNavHost(nav: NavHostController, snapshot: LeagueSnapshot, state: 
     NavHost(nav, startDestination = Tab.HOME.route) {
         composable(Tab.HOME.route) {
             HomeScreen(snapshot, state.scorers, state.error, openTeam,
-                onOpenMatches = { nav.navigate(Tab.MATCHES.route) },
-                onOpenStandings = { nav.navigate(Tab.STANDINGS.route) },
-                onOpenScorers = { nav.navigate(Tab.GOALS.route) },
-                onOpenNews = { nav.navigate(Tab.NEWS.route) })
+                onOpenMatches = { nav.navigateToTab(Tab.MATCHES) },
+                onOpenStandings = { nav.navigateToTab(Tab.STANDINGS) },
+                onOpenScorers = { nav.navigateToTab(Tab.GOALS) },
+                onOpenNews = { nav.navigateToTab(Tab.NEWS) })
         }
         composable(Tab.STANDINGS.route) { StandingsScreen(snapshot, openTeam) }
         composable(Tab.MATCHES.route) { MatchesScreen(snapshot, openTeam) }
@@ -159,6 +153,23 @@ private fun AppNavHost(nav: NavHostController, snapshot: LeagueSnapshot, state: 
         composable(TEAM_ROUTE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
             TeamScreen(snapshot, state.scorers, entry.arguments?.getString("key").orEmpty(), openTeam)
         }
+    }
+}
+
+/**
+ * Apre una scheda conservandone lo stato. La Home si raggiunge togliendo le schermate sopra:
+ * navigare verso "home" con popUpTo(home) + restoreState ripristinerebbe la pila appena
+ * salvata sotto la chiave di "home", cioè la scheda che si stava lasciando.
+ */
+private fun NavHostController.navigateToTab(tab: Tab) {
+    if (tab == Tab.HOME) {
+        popBackStack(Tab.HOME.route, inclusive = false, saveState = true)
+        return
+    }
+    navigate(tab.route) {
+        popUpTo(Tab.HOME.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
 
