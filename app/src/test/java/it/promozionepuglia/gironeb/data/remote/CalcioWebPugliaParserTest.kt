@@ -59,4 +59,22 @@ class CalcioWebPugliaParserTest {
         assertFalse(upcoming.any { it.isPlayed })
         assertNull(upcoming.first().homeGoals)
     }
+
+    @Test
+    fun recognisesLiveMatches() {
+        val matches = CalcioWebPugliaParser.parseCalendar(resource("calendario_live_sample.html"))
+        val live = matches.filter { it.isLive }
+        assertEquals(listOf("MAT" to "GRO", "LAT" to "TRI"), live.map { it.homeKey to it.awayKey })
+
+        // Il risultato di una partita in corso è parziale: non è una partita finita.
+        val matino = live.first()
+        assertTrue(matino.hasScore)
+        assertFalse(matino.isPlayed)
+        assertEquals(1, matino.homeGoals)
+        assertEquals("12' Puzzovio", matino.scorers)
+
+        // Le partite finite restano finite e non risultano in diretta.
+        assertTrue(matches.filter { it.round < 8 }.none { it.isLive })
+        assertTrue(matches.filter { it.round < 8 }.all { it.isPlayed })
+    }
 }

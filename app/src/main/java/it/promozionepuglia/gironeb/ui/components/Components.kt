@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,11 +28,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import kotlinx.coroutines.delay
+import it.promozionepuglia.gironeb.data.Match
+import it.promozionepuglia.gironeb.data.ROME
 import it.promozionepuglia.gironeb.data.Team
+import it.promozionepuglia.gironeb.data.estimatedMinute
 import it.promozionepuglia.gironeb.data.Teams
 import it.promozionepuglia.gironeb.ui.theme.AppTheme
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -82,6 +89,25 @@ fun ResultChip(result: Char) {
     ) {
         Text(result.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+/** Ora corrente a Roma, aggiornata periodicamente per far avanzare il minuto delle partite in corso. */
+@Composable
+fun rememberNow(periodMillis: Long = 15_000): ZonedDateTime {
+    val now by produceState(ZonedDateTime.now(ROME)) {
+        while (true) {
+            delay(periodMillis)
+            value = ZonedDateTime.now(ROME)
+        }
+    }
+    return now
+}
+
+/** "LIVE · 37'", oppure solo "LIVE" prima del fischio d'inizio. */
+@Composable
+fun liveLabel(m: Match): String {
+    val minute = m.estimatedMinute(rememberNow())
+    return if (minute == null) "LIVE" else "LIVE · $minute"
 }
 
 /** Apre un link in una Custom Tab, o nell'app esterna (Instagram/Facebook) se installata. */

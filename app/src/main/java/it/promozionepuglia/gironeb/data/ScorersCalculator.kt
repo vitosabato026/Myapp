@@ -14,7 +14,7 @@ object ScorersCalculator {
     fun compute(matches: List<Match>): List<Scorer> {
         val goals = linkedMapOf<Pair<String, String>, IntArray>() // (nome, squadra) -> [gol, rigori]
         for (m in matches) {
-            if (!m.isPlayed || m.isForfeit || m.scorers.isBlank()) continue
+            if (!m.hasScore || m.isForfeit || m.scorers.isBlank()) continue
             var pendingGoals = 0
             var pendingPens = 0
             for (raw in m.scorers.split(',')) {

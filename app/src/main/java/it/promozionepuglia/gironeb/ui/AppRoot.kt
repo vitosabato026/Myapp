@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -77,6 +78,12 @@ fun AppRoot(viewModel: AppViewModel) {
     val route = backStack?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
     val c = AppTheme.colors
+
+    // Aggiorna a ogni apertura e, con l'app visibile, segue le partite in diretta.
+    LifecycleStartEffect(viewModel) {
+        viewModel.onForeground()
+        onStopOrDispose { viewModel.onBackground() }
+    }
 
     Scaffold(
         containerColor = c.bg,

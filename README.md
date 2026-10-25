@@ -13,6 +13,14 @@ App Android dedicata al campionato di **Promozione Puglia – Girone B** (stagio
 
 Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans. I dati restano salvati per l'uso offline; trascina verso il basso per aggiornare.
 
+## Aggiornamenti e diretta
+
+- I dati si aggiornano **a ogni apertura** dell'app (anche quando torna dal background).
+- Con l'app aperta, mentre ci sono **partite in corso** risultati e marcatori si riscaricano da soli **ogni 30 secondi** (solo classifica e calendario, circa 25 KB compressi). Le partite in diretta compaiono in cima alla Home e sono evidenziate con LIVE in Partite e nella pagina squadra.
+- Attorno al calcio d'inizio (da 20 minuti prima) si controlla ogni minuto, per accorgersi subito che una partita è partita; se ci sono partite entro 12 ore si ricontrolla almeno ogni 30 minuti; altrimenti gli aggiornamenti automatici si fermano. Con l'app chiusa o in background non si scarica nulla.
+- La fonte segna le partite in corso evidenziandone il risultato, ma **non pubblica il minuto**: l'app lo stima dall'orario d'inizio (due tempi da 45' e 15' di intervallo) e lo dice sotto le partite in diretta.
+- Regole in `data/Live.kt`.
+
 ## Fonti dei dati
 
 | Dato | Fonte |

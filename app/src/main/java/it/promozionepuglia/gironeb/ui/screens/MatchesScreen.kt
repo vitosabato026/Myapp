@@ -39,13 +39,16 @@ import it.promozionepuglia.gironeb.ui.components.Card
 import it.promozionepuglia.gironeb.ui.components.TeamBadge
 import it.promozionepuglia.gironeb.ui.components.formatKickoff
 import it.promozionepuglia.gironeb.ui.components.kickoffTime
+import it.promozionepuglia.gironeb.ui.components.liveLabel
 import it.promozionepuglia.gironeb.ui.theme.AppTheme
 
 @Composable
 fun MatchesScreen(snapshot: LeagueSnapshot, onTeamClick: (String) -> Unit) {
     val c = AppTheme.colors
     val rounds = snapshot.rounds
-    var round by rememberSaveable { mutableIntStateOf(snapshot.lastPlayedRound) }
+    var round by rememberSaveable {
+        mutableIntStateOf(snapshot.liveMatches.firstOrNull()?.round ?: snapshot.lastPlayedRound)
+    }
     val matches = snapshot.matches.filter { it.round == round }
     val dates = matches.map { formatKickoff(it.kickoff).substringBefore(" · ") }.distinct()
 
@@ -71,6 +74,7 @@ fun MatchesScreen(snapshot: LeagueSnapshot, onTeamClick: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(matches, key = { it.homeKey + it.awayKey + it.round }) { MatchCard(it, onTeamClick) }
+            if (matches.any { it.isLive }) item { LiveFootnote() }
         }
     }
 }
@@ -92,14 +96,19 @@ fun MatchCard(m: Match, onTeamClick: (String) -> Unit) {
                 Text(home.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     fontWeight = if (homeWon) FontWeight.Bold else FontWeight.Normal)
             }
-            Column(Modifier.width(76.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.width(96.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (m.isPlayed) "${m.homeGoals} - ${m.awayGoals}" else kickoffTime(m.kickoff),
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                    if (m.hasScore) "${m.homeGoals} - ${m.awayGoals}" else kickoffTime(m.kickoff),
+                    fontSize = 20.sp, fontWeight = FontWeight.Bold, color = if (m.isLive) c.live else c.text,
                 )
                 Text(
-                    if (m.isPlayed) "FINALE" else formatKickoff(m.kickoff).substringBefore(" · ").uppercase(),
-                    color = c.muted, style = MaterialTheme.typography.labelSmall,
+                    when {
+                        m.isLive -> liveLabel(m)
+                        m.isPlayed -> "FINALE"
+                        else -> formatKickoff(m.kickoff).substringBefore(" · ").uppercase()
+                    },
+                    color = if (m.isLive) c.live else c.muted, style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (m.isLive) FontWeight.Bold else null, maxLines = 1,
                 )
             }
             Row(
@@ -119,4 +128,15 @@ fun MatchCard(m: Match, onTeamClick: (String) -> Unit) {
             )
         }
     }
+}
+
+/** Spiega come si aggiornano le partite in corso. */
+@Composable
+fun LiveFootnote() {
+    Text(
+        "Risultati e marcatori in diretta si aggiornano da soli ogni 30 secondi. " +
+            "Il minuto è stimato dall'orario d'inizio: la fonte non lo pubblica.",
+        color = AppTheme.colors.muted, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
 }

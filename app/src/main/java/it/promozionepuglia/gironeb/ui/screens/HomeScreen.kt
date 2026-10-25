@@ -9,7 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,7 +70,21 @@ fun HomeScreen(
         if (error != null) item {
             Text("$error. Mostro gli ultimi dati salvati.", color = c.muted, style = MaterialTheme.typography.bodySmall)
         }
-        if (big != null) item {
+        val live = snapshot.liveMatches
+        if (live.isNotEmpty()) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(c.live))
+                    Text("IN DIRETTA", color = c.live, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f))
+                    TextButton(onClick = onOpenMatches) { Text("Giornata") }
+                }
+            }
+            items(live, key = { "live" + it.homeKey + it.awayKey }) { MatchCard(it, onTeamClick) }
+            item { LiveFootnote() }
+        }
+        // Se il big match è in corso è già tra le partite in diretta.
+        if (big != null && !big.isLive) item {
             Card {
                 Row(Modifier.fillMaxWidth()) {
                     Text(

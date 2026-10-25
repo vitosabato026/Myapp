@@ -38,8 +38,14 @@ data class Match(
     val awayGoals: Int?,
     /** Tabellino grezzo, es. "33' Martella, 82' Desiderato" oppure "(a tavolino)". */
     val scorers: String,
+    /** In corso secondo la fonte: il risultato e i marcatori sono parziali. */
+    val isLive: Boolean = false,
 ) {
-    val isPlayed: Boolean get() = homeGoals != null && awayGoals != null
+    /** C'è un risultato, finale o parziale. */
+    val hasScore: Boolean get() = homeGoals != null && awayGoals != null
+
+    /** Partita finita. */
+    val isPlayed: Boolean get() = hasScore && !isLive
     val isForfeit: Boolean get() = scorers.contains("tavolino", ignoreCase = true)
 }
 
@@ -71,7 +77,7 @@ data class LeagueSnapshot(
     val news: List<NewsItem>,
     val updatedAtMillis: Long,
 ) {
-    /** Ultima giornata con almeno una partita giocata. */
+    /** Ultima giornata con almeno una partita finita. */
     val lastPlayedRound: Int
         get() = matches.filter { it.isPlayed }.maxOfOrNull { it.round } ?: 1
 
@@ -80,4 +86,6 @@ data class LeagueSnapshot(
         get() = matches.filter { !it.isPlayed }.minOfOrNull { it.round } ?: lastPlayedRound
 
     val rounds: List<Int> get() = matches.map { it.round }.distinct().sorted()
+
+    val liveMatches: List<Match> get() = matches.filter { it.isLive }
 }

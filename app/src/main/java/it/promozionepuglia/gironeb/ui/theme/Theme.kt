@@ -42,6 +42,7 @@ data class AppColors(
     val zonePlayoff get() = accent2
     val zonePlayout get() = accent
     val zoneRelegation = Color(0xFFE5484D)
+    val live = Color(0xFFE5484D)
 }
 
 val LightAppColors = AppColors(

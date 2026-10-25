@@ -2,6 +2,7 @@ package it.promozionepuglia.gironeb.data
 
 import it.promozionepuglia.gironeb.data.remote.CalcioWebPugliaParser
 import it.promozionepuglia.gironeb.data.remote.SalentoSportParser
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -17,26 +18,27 @@ import java.util.concurrent.TimeUnit
 class LeagueRepository(
     private val cacheFile: File,
     private val client: OkHttpClient = defaultClient(),
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun cached(): LeagueSnapshot? = withContext(Dispatchers.IO) {
+    suspend fun cached(): LeagueSnapshot? = withContext(io) {
         runCatching { json.decodeFromString<LeagueSnapshot>(cacheFile.readText()) }.getOrNull()
     }
 
     /**
-     * Aggiorna classifica, calendario e notizie. Se una fonte non risponde
+     * Aggiorna classifica, calendario e, se [includeNews], le notizie. Se una fonte non risponde
      * si tengono i suoi dati precedenti; se non c'è nulla da mostrare lancia l'errore.
      */
-    suspend fun refresh(previous: LeagueSnapshot?): LeagueSnapshot = withContext(Dispatchers.IO) {
+    suspend fun refresh(previous: LeagueSnapshot?, includeNews: Boolean = true): LeagueSnapshot = withContext(io) {
         coroutineScope {
             val standings = async { runCatching { CalcioWebPugliaParser.parseStandings(get(STANDINGS_URL)) } }
             val calendar = async { runCatching { CalcioWebPugliaParser.parseCalendar(get(CALENDAR_URL)) } }
-            val news = async { runCatching { SalentoSportParser.parsePosts(get(NEWS_URL)) } }
+            val news = if (includeNews) async { runCatching { SalentoSportParser.parsePosts(get(NEWS_URL)) } } else null
 
             val s = standings.await().getOrNull()?.takeIf { it.isNotEmpty() } ?: previous?.standings
             val c = calendar.await().getOrNull()?.takeIf { it.isNotEmpty() } ?: previous?.matches
-            val n = news.await().getOrNull() ?: previous?.news.orEmpty()
+            val n = news?.await()?.getOrNull() ?: previous?.news.orEmpty()
             if (s == null || c == null) {
                 throw standings.await().exceptionOrNull()
                     ?: calendar.await().exceptionOrNull()

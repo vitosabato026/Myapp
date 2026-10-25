@@ -62,6 +62,11 @@ class ScreenshotsTest {
     }
     private val scorers by lazy { ScorersCalculator.compute(snapshot.matches) }
 
+    /** Gli stessi dati con due partite dell'8ª giornata in corso. */
+    private val liveSnapshot by lazy {
+        snapshot.copy(matches = CalcioWebPugliaParser.parseCalendar(resource("calendario_live_sample.html")))
+    }
+
     @Test
     fun scorersMatchPublishedTable() {
         // SalentoSport alla 6ª: Secka, Castrì e Carrino a 6; Secka segna ancora alla 7ª.
@@ -72,6 +77,8 @@ class ScreenshotsTest {
     }
 
     @Test fun home() = shoot("home") { HomeScreen(snapshot, scorers, null, {}, {}, {}, {}, {}) }
+    @Test fun homeLive() = shoot("home_live") { HomeScreen(liveSnapshot, scorers, null, {}, {}, {}, {}, {}) }
+    @Test fun matchesLive() = shoot("partite_live") { MatchesScreen(liveSnapshot) {} }
     @Test fun standings() = shoot("classifica") { StandingsScreen(snapshot) {} }
     @Test fun matches() = shoot("partite") { MatchesScreen(snapshot) {} }
     @Test fun goals() = shoot("gol") { ScorersScreen(snapshot, scorers) {} }

@@ -39,6 +39,8 @@ object CalcioWebPugliaParser {
                     homeGoals = result?.groupValues?.get(1)?.toInt(),
                     awayGoals = result?.groupValues?.get(2)?.toInt(),
                     scorers = next?.cleanText().orEmpty(),
+                    // La fonte evidenzia in verde il risultato delle partite in corso.
+                    isLive = cells[2].selectFirst("span[style*=lightgreen]") != null,
                 )
             }
         }

@@ -37,6 +37,7 @@ import it.promozionepuglia.gironeb.ui.components.ResultChip
 import it.promozionepuglia.gironeb.ui.components.SectionTitle
 import it.promozionepuglia.gironeb.ui.components.TeamBadge
 import it.promozionepuglia.gironeb.ui.components.formatKickoff
+import it.promozionepuglia.gironeb.ui.components.liveLabel
 import it.promozionepuglia.gironeb.ui.components.openUrl
 import it.promozionepuglia.gironeb.ui.theme.AppTheme
 
@@ -93,12 +94,22 @@ fun TeamScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, teamKey: String,
             val home = next.homeKey == teamKey
             val opp = Teams.byKey(if (home) next.awayKey else next.homeKey)
             Card(Modifier.clickable { onTeamClick(opp.key) }, padding = 14.dp) {
-                Text("Prossima partita · ${next.round}ª giornata", color = c.muted, style = MaterialTheme.typography.labelMedium)
+                if (next.isLive) {
+                    Text("${liveLabel(next)} · ${next.round}ª giornata", color = c.live,
+                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Prossima partita · ${next.round}ª giornata", color = c.muted, style = MaterialTheme.typography.labelMedium)
+                }
                 Text(
-                    (if (home) "In casa con " else "In trasferta a ") + opp.name,
+                    (if (home) "In casa con " else "In trasferta a ") + opp.name +
+                        (if (next.hasScore) "  ${next.homeGoals}-${next.awayGoals}" else ""),
                     fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 4.dp),
                 )
-                Text(formatKickoff(next.kickoff), color = c.muted, style = MaterialTheme.typography.bodySmall)
+                if (next.isLive && next.scorers.isNotBlank()) {
+                    Text(next.scorers, color = c.muted, style = MaterialTheme.typography.bodySmall)
+                } else if (!next.isLive) {
+                    Text(formatKickoff(next.kickoff), color = c.muted, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         if (played.isNotEmpty()) item {
