@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -28,10 +29,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.promozionepuglia.gironeb.data.Goal
-import it.promozionepuglia.gironeb.data.LeagueRepository
 import it.promozionepuglia.gironeb.data.LeagueSnapshot
 import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.ScorersCalculator
+import it.promozionepuglia.gironeb.data.Tuttocampo
 import it.promozionepuglia.gironeb.data.findMatch
 import it.promozionepuglia.gironeb.data.form
 import it.promozionepuglia.gironeb.data.newsAbout
@@ -108,9 +109,17 @@ fun MatchScreen(
             }
         }
         item {
-            OutlinedButton(onClick = { openUrl(context, LeagueRepository.TUTTOCAMPO_URL) }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                Text("Il girone su Tuttocampo", modifier = Modifier.padding(start = 8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Tuttocampo.matchUrl(snapshot, m)?.let { url ->
+                    FilledTonalButton(onClick = { openUrl(context, url) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                        Text("La partita su Tuttocampo", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+                OutlinedButton(onClick = { openUrl(context, Tuttocampo.roundUrl(m.round)) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("La ${m.round}ª giornata su Tuttocampo")
+                }
+                Muted("Su Tuttocampo formazioni, ammonizioni e cronaca, quando pubblicate.")
             }
         }
     }

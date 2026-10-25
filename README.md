@@ -9,7 +9,7 @@ App Android dedicata al campionato di **Promozione Puglia – Girone B** (stagio
 - **Partite**: tutte le giornate, con risultati, orari e marcatori.
 - **Gol**: gol totali, media, miglior attacco e difesa, classifica marcatori.
 - **Notizie**: articoli di SalentoSport, più un collegamento al girone su Tuttocampo.
-- **Partita** (tocca una partita ovunque): risultato o diretta, gol minuto per minuto divisi tra casa e trasferta (rigori e autogol), le due squadre a confronto in classifica con le ultime 5, andata/ritorno, articoli di SalentoSport sulla partita, collegamento al girone su Tuttocampo.
+- **Partita** (tocca una partita ovunque): risultato o diretta, gol minuto per minuto divisi tra casa e trasferta (rigori e autogol), le due squadre a confronto in classifica con le ultime 5, andata/ritorno, articoli di SalentoSport sulla partita, collegamenti alla partita e alla giornata su Tuttocampo.
 - **Squadra**: posizione, ultime 5, statistiche, prossima partita, partite giocate, marcatori, pulsanti Instagram e Facebook.
 
 Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans. I dati restano salvati per l'uso offline; trascina verso il basso per aggiornare.
@@ -39,7 +39,7 @@ Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans
 | Notizie | API pubblica di [salentosport.net](https://www.salentosport.net/) (categoria Promozione) |
 | Profili social | Ricerca web; Sporting Oria indicati dal committente. Sono in `data/Teams.kt` |
 
-Tuttocampo.it è protetto da un controllo anti-bot (AWS WAF) che blocca la lettura automatica: l'app non ne legge i dati, ma apre il girone sul sito. Formazioni, ammonizioni e cronaca non sono pubblicate dalle fonti usate.
+Tuttocampo.it è protetto da un controllo anti-bot (AWS WAF) che blocca la lettura automatica: l'app non ne legge i dati, ma apre nel browser la pagina della partita (`data/Tuttocampo.kt`). Il sito numera le partite di ogni giornata d'andata in ordine alfabetico della squadra di casa e al ritorno ripete il numero dell'andata: regola ricavata da tre indirizzi reali e verificata nei test. Se una squadra cambia nome su Tuttocampo va aggiornato `tuttocampoName` in `Teams.kt`. Formazioni, ammonizioni e cronaca non sono pubblicate dalle fonti usate.
 
 ## Compilare
 
