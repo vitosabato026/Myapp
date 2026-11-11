@@ -29,6 +29,7 @@ class SettingsStore(private val context: Context) {
     private val themeKey = stringPreferencesKey("theme_mode")
     private val goalAlertsKey = stringPreferencesKey("goal_alerts")
     private val permissionAskedKey = booleanPreferencesKey("notification_permission_asked")
+    private val favoriteKey = stringPreferencesKey("favorite_team")
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         prefs[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
@@ -45,6 +46,24 @@ class SettingsStore(private val context: Context) {
 
     /** Se il permesso per le notifiche è già stato chiesto una volta all'avvio. */
     val notificationPermissionAsked: Flow<Boolean> = context.dataStore.data.map { it[permissionAskedKey] == true }
+
+    /** La squadra seguita, o null. */
+    val favoriteTeam: Flow<String?> = context.dataStore.data.map { it[favoriteKey] }
+
+    /**
+     * Imposta la squadra seguita. Se le notifiche non sono mai state scelte a mano,
+     * da qui in poi arrivano solo i gol delle sue partite.
+     */
+    suspend fun setFavoriteTeam(key: String?) {
+        context.dataStore.edit {
+            if (key == null) {
+                it.remove(favoriteKey)
+            } else {
+                it[favoriteKey] = key
+                if (it[goalAlertsKey] == null) it[goalAlertsKey] = key
+            }
+        }
+    }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[themeKey] = mode.name }

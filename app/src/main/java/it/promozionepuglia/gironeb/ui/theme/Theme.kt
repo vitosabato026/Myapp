@@ -43,6 +43,10 @@ data class AppColors(
     val zonePlayout get() = accent
     val zoneRelegation = Color(0xFFE5484D)
     val live = Color(0xFFE5484D)
+
+    /** Grafici: gol fatti e subiti (validati per daltonismo e contrasto su entrambi i temi). */
+    val chartFor get() = if (isDark) Color(0xFF3584D4) else Color(0xFF1F6FB2)
+    val chartAgainst get() = if (isDark) Color(0xFFBC7F10) else Color(0xFFA65F00)
 }
 
 val LightAppColors = AppColors(

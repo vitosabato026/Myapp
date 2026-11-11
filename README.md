@@ -4,13 +4,16 @@ App Android dedicata al campionato di **Promozione Puglia – Girone B** (stagio
 
 ## Schermate
 
-- **Home**: big match della giornata, primi 5 in classifica, capocannoniere, gol totali, ultima notizia.
-- **Classifica**: totale, casa e trasferta, con penalizzazioni e zone (Eccellenza, play-off, play-out, retrocessione).
-- **Partite**: tutte le giornate, con risultati, orari e marcatori.
-- **Gol**: gol totali, media, miglior attacco e difesa, classifica marcatori.
+Ispirate a Sofascore:
+
+- **Home**: "La mia squadra" in cima (o la scelta rapida toccandone il logo), partite in diretta, big match, classifica (in tempo reale durante le partite), capocannoniere, gol totali, ultima notizia.
+- **Classifica**: totale, casa e trasferta, con zone e penalizzazioni. Durante le partite è **in tempo reale**: risultati parziali inclusi, frecce di chi sale o scende rispetto all'inizio della giornata, punteggio in corso accanto alla squadra. La squadra seguita è evidenziata.
+- **Partite**: liste compatte per giorno (orario o minuto a sinistra, squadre una sotto l'altra con il punteggio, perdente in grigio, barra rossa in diretta).
+- **Gol**: gol totali, media, miglior attacco e difesa, classifica marcatori (tocca un nome per il giocatore).
 - **Notizie**: articoli di SalentoSport, più un collegamento al girone su Tuttocampo.
-- **Partita** (tocca una partita ovunque): risultato o diretta, gol minuto per minuto divisi tra casa e trasferta (rigori e autogol), le due squadre a confronto in classifica con le ultime 5, andata/ritorno, articoli di SalentoSport sulla partita, collegamenti alla partita e alla giornata su Tuttocampo.
-- **Squadra**: posizione, ultime 5, statistiche, prossima partita, partite giocate, marcatori, pulsanti Instagram e Facebook.
+- **Partita**: a schede Dettagli / Classifica / Notizie. Gol minuto per minuto divisi tra casa e trasferta con separatori "Intervallo" e "Finale" (risultato all'intervallo ricavato dai minuti), confronto tra le squadre, andata/ritorno, collegamenti a Tuttocampo; classifica con le due squadre evidenziate.
+- **Squadra**: stella per seguirla; schede Panoramica (partita in corso o prossima, statistiche, grafico della posizione giornata per giornata, gol fatti e subiti per fascia di 15 minuti, rendimento in casa e fuori, partite senza subire e senza segnare, social), Partite, Marcatori.
+- **Giocatore**: gol, rigori, posizione tra i marcatori e gol partita per partita con i minuti.
 
 Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans. I dati restano salvati per l'uso offline; trascina verso il basso per aggiornare.
 
@@ -24,7 +27,7 @@ Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans
 
 ## Notifiche dei gol
 
-- Campanella in alto: gol di **tutto il girone** (di serie), di **una sola squadra** o disattivate. Al primo avvio l'app chiede il permesso per le notifiche (Android 13+).
+- Campanella in alto: gol di **tutto il girone** (di serie; seguendo una squadra diventano solo i suoi, se non li hai scelti a mano), di **una sola squadra** o disattivate. Al primo avvio l'app chiede il permesso per le notifiche (Android 13+).
 - Una notifica per partita, aggiornata a ogni gol: "GOL! Virtus Matino 1-0 Real V. Grottaglie · 12' Puzzovio". Se la fonte non ha ancora scritto il marcatore, la notifica lo dice. Toccandola si apre la partita.
 - Con l'app chiusa i controlli li fa WorkManager (`notifications/LiveUpdates.kt`): ogni minuto durante le partite, poi nulla fino a 20 minuti prima della giornata successiva; in più un controllo ogni 12 ore per eventuali cambi di orario.
 - Si notificano solo partite in diretta (o appena finite) nelle 4 ore dal calcio d'inizio: aprire l'app giorni dopo non produce una raffica di notifiche, e lo stesso gol non viene mai notificato due volte.

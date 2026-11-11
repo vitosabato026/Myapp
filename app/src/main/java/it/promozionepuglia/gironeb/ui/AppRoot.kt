@@ -17,6 +17,9 @@ import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.Teams
 import it.promozionepuglia.gironeb.notifications.GoalNotifier
 import it.promozionepuglia.gironeb.ui.screens.MatchScreen
+import it.promozionepuglia.gironeb.ui.screens.PlayerScreen
+import it.promozionepuglia.gironeb.data.Scorer
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,6 +88,7 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
 
 private const val TEAM_ROUTE = "squadra/{key}"
 private const val MATCH_ROUTE = "partita/{round}/{home}"
+private const val PLAYER_ROUTE = "giocatore/{team}/{name}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +96,7 @@ fun AppRoot(viewModel: AppViewModel, pendingRoute: String? = null, onPendingRout
     val state by viewModel.state.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val goalAlerts by viewModel.goalAlerts.collectAsStateWithLifecycle()
+    val favorite by viewModel.favoriteTeam.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -176,7 +181,7 @@ fun AppRoot(viewModel: AppViewModel, pendingRoute: String? = null, onPendingRout
             if (snapshot == null) {
                 EmptyState(loading = state.loading, error = state.error, onRetry = viewModel::refresh)
             } else {
-                AppNavHost(nav, snapshot, state, pendingRoute, onPendingRouteHandled)
+                AppNavHost(nav, snapshot, state, pendingRoute, onPendingRouteHandled, favorite, viewModel::setFavoriteTeam)
             }
         }
     }
@@ -189,9 +194,12 @@ private fun AppNavHost(
     state: UiState,
     pendingRoute: String?,
     onPendingRouteHandled: () -> Unit,
+    favorite: String?,
+    onSetFavorite: (String?) -> Unit,
 ) {
     val openTeam: (String) -> Unit = { key -> nav.navigate("squadra/$key") }
     val openMatch: (Match) -> Unit = { m -> nav.navigate(GoalNotifier.matchRoute(m.round, m.homeKey)) }
+    val openPlayer: (Scorer) -> Unit = { s -> nav.navigate("giocatore/${s.teamKey}/${Uri.encode(s.name)}") }
     // Tocco su una notifica di gol: apre la partita.
     LaunchedEffect(pendingRoute) {
         if (pendingRoute != null) {
@@ -206,14 +214,29 @@ private fun AppNavHost(
                 onOpenStandings = { nav.navigateToTab(Tab.STANDINGS) },
                 onOpenScorers = { nav.navigateToTab(Tab.GOALS) },
                 onOpenNews = { nav.navigateToTab(Tab.NEWS) },
-                onMatchClick = openMatch)
+                onMatchClick = openMatch,
+                favorite = favorite,
+                onChooseFavorite = onSetFavorite)
         }
-        composable(Tab.STANDINGS.route) { StandingsScreen(snapshot, openTeam) }
-        composable(Tab.MATCHES.route) { MatchesScreen(snapshot, openMatch, openTeam) }
-        composable(Tab.GOALS.route) { ScorersScreen(snapshot, state.scorers, openTeam) }
+        composable(Tab.STANDINGS.route) { StandingsScreen(snapshot, favorite, openTeam) }
+        composable(Tab.MATCHES.route) { MatchesScreen(snapshot, openMatch) }
+        composable(Tab.GOALS.route) { ScorersScreen(snapshot, state.scorers, openPlayer, openTeam) }
         composable(Tab.NEWS.route) { NewsScreen(snapshot.news) }
         composable(TEAM_ROUTE, arguments = listOf(navArgument("key") { type = NavType.StringType })) { entry ->
-            TeamScreen(snapshot, state.scorers, entry.arguments?.getString("key").orEmpty(), openMatch, openTeam)
+            TeamScreen(
+                snapshot, state.scorers, entry.arguments?.getString("key").orEmpty(),
+                onMatchClick = openMatch, favorite = favorite, onToggleFavorite = onSetFavorite,
+                onPlayerClick = openPlayer, onTeamClick = openTeam,
+            )
+        }
+        composable(
+            PLAYER_ROUTE,
+            arguments = listOf(navArgument("team") { type = NavType.StringType }, navArgument("name") { type = NavType.StringType }),
+        ) { entry ->
+            PlayerScreen(
+                snapshot, state.scorers, entry.arguments?.getString("team").orEmpty(),
+                entry.arguments?.getString("name").orEmpty(), openMatch, openTeam,
+            )
         }
         composable(
             MATCH_ROUTE,

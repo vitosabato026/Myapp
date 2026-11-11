@@ -135,6 +135,10 @@ fun rememberNow(periodMillis: Long = 15_000): ZonedDateTime {
     return now
 }
 
+/** Minuto stimato di una partita in corso, null prima del fischio d'inizio. */
+@Composable
+fun liveMinute(m: Match): String? = m.estimatedMinute(rememberNow())
+
 /** "LIVE · 37'", oppure solo "LIVE" prima del fischio d'inizio. */
 @Composable
 fun liveLabel(m: Match): String {

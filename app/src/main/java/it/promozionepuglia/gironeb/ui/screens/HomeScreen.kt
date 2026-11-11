@@ -1,21 +1,19 @@
 package it.promozionepuglia.gironeb.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,7 +21,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,11 +35,17 @@ import it.promozionepuglia.gironeb.data.Match
 import it.promozionepuglia.gironeb.data.Scorer
 import it.promozionepuglia.gironeb.data.Teams
 import it.promozionepuglia.gironeb.data.bigMatch
+import it.promozionepuglia.gironeb.data.form
+import it.promozionepuglia.gironeb.data.matchesOf
 import it.promozionepuglia.gironeb.data.position
 import it.promozionepuglia.gironeb.data.standingOf
 import it.promozionepuglia.gironeb.data.stats
+import it.promozionepuglia.gironeb.data.table
 import it.promozionepuglia.gironeb.ui.components.Card
+import it.promozionepuglia.gironeb.ui.components.MatchList
+import it.promozionepuglia.gironeb.ui.components.ResultChip
 import it.promozionepuglia.gironeb.ui.components.SectionTitle
+import it.promozionepuglia.gironeb.ui.components.StandingsTable
 import it.promozionepuglia.gironeb.ui.components.TeamBadge
 import it.promozionepuglia.gironeb.ui.components.formatKickoff
 import it.promozionepuglia.gironeb.ui.components.formatNewsDate
@@ -58,12 +65,16 @@ fun HomeScreen(
     onOpenScorers: () -> Unit,
     onOpenNews: () -> Unit,
     onMatchClick: (Match) -> Unit = {},
+    favorite: String? = null,
+    onChooseFavorite: (String) -> Unit = {},
 ) {
     val c = AppTheme.colors
     val context = LocalContext.current
     val stats = snapshot.stats()
     val round = snapshot.nextRound
     val big = snapshot.bigMatch(round)
+    val live = snapshot.liveMatches
+    val table = snapshot.table()
 
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -72,7 +83,13 @@ fun HomeScreen(
         if (error != null) item {
             Text("$error. Mostro gli ultimi dati salvati.", color = c.muted, style = MaterialTheme.typography.bodySmall)
         }
-        val live = snapshot.liveMatches
+        item {
+            if (favorite != null) {
+                FavoriteCard(snapshot, favorite, onTeamClick, onMatchClick)
+            } else {
+                ChooseFavorite(onChooseFavorite)
+            }
+        }
         if (live.isNotEmpty()) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -82,7 +99,7 @@ fun HomeScreen(
                     TextButton(onClick = onOpenMatches) { Text("Giornata") }
                 }
             }
-            items(live, key = { "live" + it.homeKey + it.awayKey }) { MatchCard(it, onTeamClick, onMatchClick) }
+            item { MatchList(live, onMatchClick) }
             item { LiveFootnote() }
         }
         // Se il big match è in corso è già tra le partite in diretta.
@@ -110,20 +127,12 @@ fun HomeScreen(
         }
         item {
             Card(padding = 14.dp) {
-                SectionTitle("Classifica") { TextButton(onClick = onOpenStandings) { Text("Completa") } }
-                snapshot.standings.take(5).forEachIndexed { i, row ->
-                    val team = Teams.byKey(row.teamKey)
-                    Row(
-                        Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable { onTeamClick(row.teamKey) },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text("${i + 1}", color = c.muted, modifier = Modifier.width(18.dp), textAlign = TextAlign.End)
-                        TeamBadge(team)
-                        Text(team.name, modifier = Modifier.weight(1f))
-                        Text("${row.total.points}", fontWeight = FontWeight.Bold)
-                    }
+                SectionTitle(if (live.isNotEmpty()) "Classifica in tempo reale" else "Classifica") {
+                    TextButton(onClick = onOpenStandings) { Text("Completa") }
                 }
+                // Le prime cinque, più la squadra seguita se è più in basso.
+                val shown = table.take(5) + table.drop(5).filter { it.teamKey == favorite }
+                StandingsTable(shown, onTeamClick, highlight = setOfNotNull(favorite), compact = true)
             }
         }
         item {
@@ -165,6 +174,58 @@ fun HomeScreen(
                 color = c.muted, style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** "La mia squadra": posizione, ultime 5 e la partita in corso o la prossima (o l'ultima, a fine campionato). */
+@Composable
+private fun FavoriteCard(snapshot: LeagueSnapshot, key: String, onTeamClick: (String) -> Unit, onMatchClick: (Match) -> Unit) {
+    val c = AppTheme.colors
+    val team = Teams.byKey(key)
+    val row = snapshot.standingOf(key)
+    val all = snapshot.matchesOf(key)
+    val current = all.firstOrNull { it.isLive } ?: all.firstOrNull { !it.isPlayed }
+    val last = all.lastOrNull { it.isPlayed }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Card(Modifier.clickable { onTeamClick(key) }, padding = 14.dp) {
+            Text("LA MIA SQUADRA", color = c.accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Row(
+                Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TeamBadge(team, 44.dp)
+                Column(Modifier.weight(1f)) {
+                    Text(team.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (row != null) {
+                        Text("${snapshot.position(key)}º · ${row.total.points} punti", color = c.muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { snapshot.form(key).forEach { ResultChip(it) } }
+            }
+        }
+        val shown = listOfNotNull(last?.takeIf { current?.isLive != true }, current)
+        if (shown.isNotEmpty()) MatchList(shown, onMatchClick, showRound = true)
+    }
+}
+
+/** Senza squadra seguita: i loghi del girone, uno tocco per sceglierla. */
+@Composable
+private fun ChooseFavorite(onChoose: (String) -> Unit) {
+    val c = AppTheme.colors
+    Card(padding = 14.dp) {
+        Text("Segui la tua squadra", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(
+            "Toccane il logo: la troverai qui in cima, evidenziata in classifica, e riceverai i gol delle sue partite.",
+            color = c.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(Teams.all.sortedBy { it.name }, key = { it.key }) { team ->
+                Box(
+                    Modifier.clip(CircleShape).clickable { onChoose(team.key) }.padding(4.dp)
+                        .semantics { contentDescription = "Segui ${team.name}" },
+                ) { TeamBadge(team, 40.dp) }
+            }
         }
     }
 }

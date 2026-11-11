@@ -9,6 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import it.promozionepuglia.gironeb.data.goalTiming
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.core.view.drawToBitmap
@@ -21,6 +24,7 @@ import it.promozionepuglia.gironeb.ui.screens.HomeScreen
 import it.promozionepuglia.gironeb.ui.screens.MatchScreen
 import it.promozionepuglia.gironeb.ui.screens.MatchesScreen
 import it.promozionepuglia.gironeb.ui.screens.NewsScreen
+import it.promozionepuglia.gironeb.ui.screens.PlayerScreen
 import it.promozionepuglia.gironeb.ui.screens.ScorersScreen
 import it.promozionepuglia.gironeb.ui.screens.StandingsScreen
 import it.promozionepuglia.gironeb.ui.screens.TeamScreen
@@ -82,6 +86,16 @@ class ScreenshotsTest {
     @Test fun matchesLive() = shoot("partite_live") { MatchesScreen(liveSnapshot) {} }
     @Test fun matchDetail() = shoot("partita") { MatchScreen(snapshot, 6, "TAV", {}, {}) }
     @Test fun matchDetailLive() = shoot("partita_live") { MatchScreen(liveSnapshot, 8, "MAT", {}, {}) }
+    @Test fun homeFavorite() = shoot("home_preferita") { HomeScreen(snapshot, scorers, null, {}, {}, {}, {}, {}, favorite = "ORI") }
+    @Test fun standingsLive() = shoot("classifica_live") { StandingsScreen(liveSnapshot, favorite = "MAT") {} }
+    @Test fun player() = shoot("giocatore") { PlayerScreen(snapshot, scorers, "GIN", "Secka", {}, {}) }
+    @Test fun goalTiming() = shoot("grafico_gol") {
+        androidx.compose.foundation.layout.Box(Modifier.padding(16.dp)) {
+            it.promozionepuglia.gironeb.ui.components.Card(padding = 14.dp) {
+                it.promozionepuglia.gironeb.ui.components.GoalTimingChart(snapshot.goalTiming("TAV"))
+            }
+        }
+    }
     @Test fun standings() = shoot("classifica") { StandingsScreen(snapshot) {} }
     @Test fun matches() = shoot("partite") { MatchesScreen(snapshot) {} }
     @Test fun goals() = shoot("gol") { ScorersScreen(snapshot, scorers) {} }

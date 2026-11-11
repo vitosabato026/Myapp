@@ -6,6 +6,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -101,7 +103,7 @@ class NavigationTest {
         startApp()
         clickTab("Partite")
         // 7ª giornata: Atletico Tricase - F. Taviano 2-0.
-        compose.onNodeWithText("33' Martella, 82' Desiderato").performClick()
+        compose.onNodeWithText("Atletico Tricase").performClick()
         compose.waitForIdle()
         assertTrue(isMatchShown())
         compose.onNodeWithText("Martella").assertExists()
@@ -112,5 +114,33 @@ class NavigationTest {
         startApp(pendingRoute = "partita/7/TRI")
         assertTrue(isMatchShown())
         compose.onNodeWithText("Desiderato").assertExists()
+    }
+
+    /** Le preferenze si salvano in modo asincrono (DataStore): si aspetta che compaiano. */
+    private fun waitForText(text: String) =
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+
+    private fun waitForDescription(description: String) =
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty() }
+
+    @Test
+    fun choosingAFavoriteTeamPinsItOnHome() {
+        startApp()
+        compose.onNodeWithContentDescription("Segui Atletico Tricase").performClick()
+        waitForText("LA MIA SQUADRA")
+        // Dalla scheda si apre la squadra, già seguita: la stella permette di smettere.
+        compose.onNodeWithText("LA MIA SQUADRA").performClick()
+        waitForDescription("Non seguire più Atletico Tricase")
+        compose.onNodeWithContentDescription("Non seguire più Atletico Tricase").performClick()
+        waitForDescription("Segui Atletico Tricase")
+    }
+
+    @Test
+    fun scorerOpensPlayerPage() {
+        startApp()
+        clickTab("Gol")
+        compose.onNodeWithText("Secka").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Gol partita per partita").assertExists()
     }
 }

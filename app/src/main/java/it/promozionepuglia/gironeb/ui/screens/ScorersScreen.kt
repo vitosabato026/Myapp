@@ -35,7 +35,7 @@ import it.promozionepuglia.gironeb.ui.theme.AppTheme
 import java.util.Locale
 
 @Composable
-fun ScorersScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, onTeamClick: (String) -> Unit) {
+fun ScorersScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, onPlayerClick: (Scorer) -> Unit = {}, onTeamClick: (String) -> Unit) {
     val c = AppTheme.colors
     val stats = snapshot.stats()
     val max = scorers.firstOrNull()?.goals ?: 1
@@ -65,7 +65,7 @@ fun ScorersScreen(snapshot: LeagueSnapshot, scorers: List<Scorer>, onTeamClick: 
             }
         }
         itemsIndexed(scorers.take(40)) { i, s ->
-            Column(Modifier.fillMaxWidth().clickable { onTeamClick(s.teamKey) }.padding(vertical = 4.dp)) {
+            Column(Modifier.fillMaxWidth().clickable { onPlayerClick(s) }.padding(vertical = 4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("${positions[i]}", color = c.muted, modifier = Modifier.width(22.dp), textAlign = TextAlign.End)
                     Column(Modifier.weight(1f)) {

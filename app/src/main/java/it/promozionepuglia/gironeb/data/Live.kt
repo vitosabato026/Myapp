@@ -35,6 +35,12 @@ fun Match.estimatedMinute(now: ZonedDateTime): String? {
     }
 }
 
+/** Se, secondo l'orario d'inizio, il primo tempo è finito (45' più 3' di recupero stimati). */
+fun Match.isPastFirstHalf(now: ZonedDateTime): Boolean {
+    val start = kickoffAt() ?: return false
+    return Duration.between(start, now).toMinutes() >= 48
+}
+
 object LivePolling {
     /** Aggiornamento durante le partite in corso. */
     const val LIVE_MILLIS = 30_000L

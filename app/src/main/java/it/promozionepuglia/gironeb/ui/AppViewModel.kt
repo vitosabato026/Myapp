@@ -66,6 +66,13 @@ class AppViewModel(
     val goalAlerts: StateFlow<GoalAlerts> =
         settings.goalAlerts.stateIn(viewModelScope, SharingStarted.Eagerly, GoalAlerts.All)
 
+    val favoriteTeam: StateFlow<String?> =
+        settings.favoriteTeam.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun setFavoriteTeam(key: String?) {
+        viewModelScope.launch { settings.setFavoriteTeam(key) }
+    }
+
     /** I dati salvati, letti una volta sola prima del primo aggiornamento. */
     private val cacheLoaded = viewModelScope.async {
         repository.cached()?.let { cached -> _state.update { it.withSnapshot(cached) } }
