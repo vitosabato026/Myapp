@@ -45,6 +45,10 @@ Tema chiaro, scuro o come il telefono (icona in alto a destra). Font Google Sans
 
 Tuttocampo.it è protetto da un controllo anti-bot (AWS WAF) che blocca la lettura automatica: l'app non ne legge i dati, ma apre nel browser la pagina della partita (`data/Tuttocampo.kt`). Il sito numera le partite di ogni giornata d'andata in ordine alfabetico della squadra di casa e al ritorno ripete il numero dell'andata: regola ricavata da tre indirizzi reali e verificata nei test. Se una squadra cambia nome su Tuttocampo va aggiornato `tuttocampoName` in `Teams.kt`. Formazioni, ammonizioni e cronaca non sono pubblicate dalle fonti usate.
 
+## Scaricare l'app
+
+L'APK di test più recente è in [`dist/PromozioneB-0.1.0-debug.apk`](dist/PromozioneB-0.1.0-debug.apk) (Android 8 o successivo, firmato con la chiave di debug): scaricalo sul telefono, aprilo e consenti l'installazione da quella fonte se Android lo chiede.
+
 ## Compilare
 
 Serve l'Android SDK (piattaforma 36) e JDK 17 o superiore.
